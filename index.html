@@ -153,6 +153,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .form-row .form-field{flex:1}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 .empty-state{text-align:center;padding:2rem 1rem;color:var(--text-3);font-size:13px}
+.task-action-btn{background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-3);padding:2px 5px;border-radius:4px;opacity:0;transition:opacity .15s;flex-shrink:0}
+.focus-task-row:hover .task-action-btn,.task-row:hover .task-action-btn{opacity:1}
+.task-action-btn:hover{background:var(--surface2);color:var(--text-2)}
+.task-action-btn.del:hover{color:#c0392b}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:3px}
 </style>
 </head>
@@ -276,13 +280,46 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
+  <!-- Edit task modal -->
+  <div class="modal-backdrop hidden" id="modal-edit-task">
+    <div class="modal">
+      <div class="modal-title">Edit task</div>
+      <input type="hidden" id="et-proj-id" />
+      <input type="hidden" id="et-task-id" />
+      <input type="hidden" id="et-is-quick" />
+      <div class="form-field"><label class="form-label">Task</label><input class="form-input" id="et-text" /></div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Owner</label><select class="form-select" id="et-owner"></select></div>
+        <div class="form-field"><label class="form-label">Due date</label><input class="form-input" id="et-due" type="date" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Recurrence</label>
+          <select class="form-select" id="et-recur">
+            <option value="none">One-time</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="et-cat"></select></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" style="color:#c0392b;border-color:#f0c0bc" onclick="deleteTaskFromModal()">Delete</button>
+        <button class="btn" onclick="closeModal('modal-edit-task')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitEditTask()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="save-indicator" id="save-indicator">Saving...</div>
 
 <script>
 // ── CONFIGURATION — fill these in after setup ──────────────
 // Instructions in the setup guide
-const CLIENT_ID = '1098774701813-ojbmfsetekh42onsbp3jv3t6edh7kt69.apps.googleusercontent.com';
+const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
 const FILE_NAME = 'our-tracker-data.json';
+const FILE_ID = '1Sxxpk0amAJVQnqV_55rESEKRbiOi5eeh'; // shared Drive file
 // ──────────────────────────────────────────────────────────
 
 (function(){
@@ -307,7 +344,7 @@ function showSaving(msg){
 function handleSignIn(){
   const client = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/drive.file',
+    scope: 'https://www.googleapis.com/auth/drive',
     callback: function(resp){
       if (resp.error){ showAuthError(resp.error); return; }
       accessToken = resp.access_token;
@@ -322,19 +359,14 @@ function handleSignIn(){
 async function loadFromDrive(){
   showSaving('Loading...');
   try {
-    // Search for existing file
-    const search = await fetch(
-      'https://www.googleapis.com/drive/v3/files?q=name%3D%22'+FILE_NAME+'%22+and+trashed%3Dfalse&fields=files(id,name)',
+    // Use the hardcoded shared file ID directly — works for both Colin and Sophia
+    driveFileId = FILE_ID;
+    const resp = await fetch(
+      'https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media',
       { headers: { Authorization: 'Bearer ' + accessToken } }
     );
-    const searchData = await search.json();
-    if (searchData.files && searchData.files.length > 0){
-      driveFileId = searchData.files[0].id;
-      const content = await fetch(
-        'https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media',
-        { headers: { Authorization: 'Bearer ' + accessToken } }
-      );
-      const data = await content.json();
+    if (resp.ok) {
+      const data = await resp.json();
       if (data.projects) projects = data.projects;
       if (data.quickTasks) quickTasks = data.quickTasks;
       if (data.notes) notes = data.notes;
@@ -351,10 +383,15 @@ async function loadFromDrive(){
   }
 }
 
+let lastSavedVersion = null;
+let isSaving = false;
+
 async function saveToDrive(){
   if (!accessToken) return;
+  isSaving = true;
   showSaving();
   const payload = JSON.stringify({ projects, quickTasks, notes, cfg });
+  lastSavedVersion = payload; // track what we saved so sync doesn't re-render it
   try {
     if (driveFileId){
       await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media',{
@@ -363,7 +400,6 @@ async function saveToDrive(){
         body: payload
       });
     } else {
-      // Create file
       const meta = await fetch('https://www.googleapis.com/drive/v3/files',{
         method: 'POST',
         headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
@@ -378,6 +414,27 @@ async function saveToDrive(){
       });
     }
   } catch(e){ console.error('Save failed:', e); }
+  isSaving = false;
+}
+
+// Silent background sync — picks up changes from the other person
+async function syncFromDrive(){
+  if(!accessToken || isSaving || !driveFileId) return;
+  try {
+    const resp = await fetch(
+      'https://www.googleapis.com/drive/v3/files/'+driveFileId+'?alt=media',
+      {headers:{Authorization:'Bearer '+accessToken}}
+    );
+    const data = await resp.json();
+    const incoming = JSON.stringify(data);
+    if(lastSavedVersion && incoming === lastSavedVersion) return;
+    if(data.projects) projects = data.projects;
+    if(data.quickTasks) quickTasks = data.quickTasks;
+    if(data.notes) notes = data.notes;
+    if(data.cfg) cfg = data.cfg;
+    lastSavedVersion = incoming;
+    render();
+  } catch(e){ /* silent fail */ }
 }
 
 function showAuthError(msg){
@@ -621,6 +678,7 @@ function taskRowHtml(t){
     ownerBadge(t.owner||cfg.owners[cfg.owners.length-1])+
     '<span class="focus-proj-ref">'+esc(t.projName)+'</span>'+
     (db.label?'<span class="task-due-tag '+db.cls+'">'+db.label+'</span>':'')+
+    '<button class="task-action-btn" onclick='openEditTask('+JSON.stringify(t)+')' title="Edit">✎</button>'+
     '</div>';
 }
 
@@ -717,12 +775,14 @@ function renderProjects(){
         return '<div class="milestone-block"><div class="milestone-name">'+esc(m.label)+'</div>'+
           m.tasks.map(function(t){
             const tb=dueBadge(t.due); const to=t.owner||proj.owner; const rl=recurLabel(t.recur);
+            const tObj=Object.assign({},t,{cat:proj.cat,owner:to,projName:proj.name,projId:proj.id,isQuick:false});
             return '<div class="task-row">'+
               '<div class="task-check'+(t.done?' done':'')+'" onclick="toggleTask('+proj.id+','+t.id+')"></div>'+
               '<span class="task-label'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'+
               (rl?'<span class="recur-badge">'+rl+'</span>':'')+
               ownerBadge(to)+
               (tb.label?'<span class="task-due-tag '+tb.cls+'">'+tb.label+'</span>':'')+
+              '<button class="task-action-btn" onclick='openEditTask('+JSON.stringify(tObj)+')' title="Edit">✎</button>'+
               '</div>';
           }).join('')+
           '<div class="add-task-row">'+
@@ -783,6 +843,61 @@ function addTask(projId,milestoneName){
 }
 function saveNotes(projId,val){notes[projId]=val;save();}
 
+// ── Edit / delete tasks ────────────────────────────────────
+function openEditTask(t){
+  // Populate owner and cat selects
+  const ownerSel = document.getElementById('et-owner');
+  ownerSel.innerHTML = cfg.owners.map(function(o){return '<option value="'+esc(o)+'">'+esc(o)+'</option>';}).join('');
+  const catSel = document.getElementById('et-cat');
+  catSel.innerHTML = cfg.cats.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
+
+  document.getElementById('et-proj-id').value  = t.projId || '';
+  document.getElementById('et-task-id').value  = t.id;
+  document.getElementById('et-is-quick').value = t.isQuick ? '1' : '0';
+  document.getElementById('et-text').value      = t.text || '';
+  document.getElementById('et-due').value       = t.due || '';
+  document.getElementById('et-recur').value     = t.recur || 'none';
+  ownerSel.value = t.owner || cfg.owners[cfg.owners.length-1];
+  catSel.value   = t.cat || cfg.cats[0].name;
+  document.getElementById('modal-edit-task').classList.remove('hidden');
+}
+
+function submitEditTask(){
+  const taskId   = parseInt(document.getElementById('et-task-id').value);
+  const isQuick  = document.getElementById('et-is-quick').value === '1';
+  const projId   = parseInt(document.getElementById('et-proj-id').value);
+  const newText  = document.getElementById('et-text').value.trim(); if(!newText) return;
+  const newDue   = document.getElementById('et-due').value || null;
+  const newOwner = document.getElementById('et-owner').value;
+  const newRecur = document.getElementById('et-recur').value;
+  const newCat   = document.getElementById('et-cat').value;
+
+  if(isQuick){
+    const t = quickTasks.find(function(t){return t.id===taskId;}); if(!t) return;
+    t.text=newText; t.due=newDue; t.owner=newOwner; t.recur=newRecur; t.cat=newCat;
+  } else {
+    const p = projects.find(function(p){return p.id===projId;}); if(!p) return;
+    p.milestones.forEach(function(m){m.tasks.forEach(function(t){
+      if(t.id===taskId){ t.text=newText; t.due=newDue; t.owner=newOwner; t.recur=newRecur; }
+    });});
+  }
+  closeModal('modal-edit-task'); save(); render();
+}
+
+function deleteTaskFromModal(){
+  const taskId  = parseInt(document.getElementById('et-task-id').value);
+  const isQuick = document.getElementById('et-is-quick').value === '1';
+  const projId  = parseInt(document.getElementById('et-proj-id').value);
+  if(!confirm('Delete this task?')) return;
+  if(isQuick){
+    quickTasks = quickTasks.filter(function(t){return t.id!==taskId;});
+  } else {
+    const p = projects.find(function(p){return p.id===projId;}); if(!p) return;
+    p.milestones.forEach(function(m){ m.tasks = m.tasks.filter(function(t){return t.id!==taskId;}); });
+  }
+  closeModal('modal-edit-task'); save(); render();
+}
+
 // ── Modals ─────────────────────────────────────────────────
 function openAddProject(){populateSelects();document.getElementById('modal-project').classList.remove('hidden');}
 function openAddMilestone(id){document.getElementById('ms-proj-id').value=id;document.getElementById('modal-milestone').classList.remove('hidden');}
@@ -815,6 +930,7 @@ window.switchView=switchView; window.toggleCat=toggleCat; window.toggleOwner=tog
 window.quickAddToday=quickAddToday; window.quickAddWeek=quickAddWeek; window.toggleQuickTask=toggleQuickTask;
 window.toggleProject=toggleProject; window.toggleTask=toggleTask; window.addTask=addTask;
 window.saveNotes=saveNotes; window.cycleStatus=cycleStatus;
+window.openEditTask=openEditTask; window.submitEditTask=submitEditTask; window.deleteTaskFromModal=deleteTaskFromModal;
 window.openAddProject=openAddProject; window.openAddMilestone=openAddMilestone;
 window.closeModal=closeModal; window.submitProject=submitProject; window.submitMilestone=submitMilestone;
 window.openSettings=openSettings; window.closeSettings=closeSettings;
