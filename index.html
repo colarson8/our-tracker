@@ -2,180 +2,343 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#faf9f7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Our Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Google APIs -->
-<script src="https://apis.google.com/js/api.js"></script>
-<script src="https://accounts.google.com/gsi/client"></script>
+<script id="gsi-script" src="https://accounts.google.com/gsi/client" async></script>
 <style>
 :root {
   --bg:#faf9f7;--surface:#fff;--surface2:#f2f0ec;
   --border:rgba(0,0,0,0.07);--border-md:rgba(0,0,0,0.12);
   --text:#1a1917;--text-2:#6b6a66;--text-3:#aaa9a4;
+  --danger:#c0392b;--warn:#b06a00;--ok:#2d7a4f;
   --radius:10px;--radius-sm:6px;
   --shadow:0 1px 3px rgba(0,0,0,0.06);--shadow-md:0 2px 8px rgba(0,0,0,0.09);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  --tabbar-h:0px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+button{font-family:inherit}
+:focus-visible{outline:2px solid #4a7fb5;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-/* Auth screen */
-.auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:24px;text-align:center;padding:24px}
-.auth-logo{font-size:48px;margin-bottom:8px}
-.auth-title{font-size:24px;font-weight:500;color:var(--text)}
-.auth-sub{font-size:14px;color:var(--text-2);max-width:320px;line-height:1.6}
-.auth-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;border-radius:var(--radius);border:1px solid var(--border-md);background:var(--surface);font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);cursor:pointer;box-shadow:var(--shadow-md);transition:box-shadow .15s}
+/* Auth */
+.auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;gap:22px;text-align:center;padding:28px}
+.auth-logo{font-size:48px}
+.auth-title{font-size:24px;font-weight:500}
+.auth-sub{font-size:14px;color:var(--text-2);max-width:340px;line-height:1.6}
+.auth-btn{display:inline-flex;align-items:center;gap:10px;padding:13px 24px;border-radius:var(--radius);border:1px solid var(--border-md);background:var(--surface);font-size:15px;color:var(--text);cursor:pointer;box-shadow:var(--shadow-md);min-height:48px}
 .auth-btn:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
-.auth-btn svg{flex-shrink:0}
-.auth-error{font-size:13px;color:#c0392b;background:#fdecea;padding:10px 16px;border-radius:var(--radius-sm);max-width:360px}
+.auth-btn[disabled]{opacity:.5;cursor:default;box-shadow:var(--shadow)}
+.auth-error{font-size:13px;color:var(--danger);background:#fdecea;padding:10px 16px;border-radius:var(--radius-sm);max-width:380px;text-align:left}
 
-/* Save indicator */
-.save-indicator{position:fixed;bottom:16px;right:16px;font-size:12px;padding:6px 14px;border-radius:20px;background:var(--text);color:#fff;opacity:0;transition:opacity .3s;z-index:500;font-family:'DM Sans',sans-serif;pointer-events:none}
+/* Status pill */
+.save-indicator{position:fixed;bottom:calc(16px + var(--safe-b) + var(--tabbar-h));right:16px;font-size:12px;padding:7px 14px;border-radius:20px;background:var(--text);color:#fff;opacity:0;transition:opacity .25s;z-index:500;pointer-events:none;max-width:calc(100vw - 32px)}
 .save-indicator.show{opacity:1}
+.save-indicator.err{background:var(--danger);pointer-events:auto}
 
-/* App shell */
-.shell{display:flex;height:100vh;overflow:hidden}
-.sidebar{width:224px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;overflow-y:auto}
-.main{flex:1;overflow-y:auto;padding:28px 32px}
-.sidebar-logo{padding:0 20px 18px;border-bottom:1px solid var(--border);margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between}
-.logo-title{font-size:13px;font-weight:500;color:var(--text-2);letter-spacing:.03em}
+/* Reconnect banner */
+.reconnect-bar{position:fixed;left:0;right:0;top:0;z-index:600;background:#fdecea;color:#7a231a;border-bottom:1px solid #f0c0bc;padding:calc(10px + var(--safe-t)) 16px 10px;display:none;align-items:center;gap:12px;font-size:13px}
+.reconnect-bar.show{display:flex}
+.reconnect-bar button{margin-left:auto;flex-shrink:0;border:1px solid #d9776b;background:#fff;color:#7a231a;border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;cursor:pointer;min-height:38px}
+
+/* Shell */
+.shell{display:flex;height:100vh;height:100dvh;overflow:hidden}
+.sidebar{width:224px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:28px 32px}
+.sidebar-logo{padding:0 20px 18px;border-bottom:1px solid var(--border);margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.logo-title{font-size:15px;font-weight:500;color:var(--text)}
 .logo-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3);margin-top:2px}
-.settings-btn{background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;padding:2px 4px;border-radius:var(--radius-sm);margin-top:2px}
+.settings-btn{background:none;border:none;cursor:pointer;color:var(--text-3);font-size:17px;padding:4px 6px;border-radius:var(--radius-sm)}
 .settings-btn:hover{background:var(--bg);color:var(--text-2)}
 .nav-section{padding:0 12px;margin-bottom:18px}
 .nav-label{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);padding:0 8px;margin-bottom:4px}
-.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text-2);border:none;background:none;width:100%;text-align:left;transition:background .12s,color .12s}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text-2);border:none;background:none;width:100%;text-align:left;transition:background .12s,color .12s}
 .nav-item:hover{background:var(--bg);color:var(--text)}
 .nav-item.active{font-weight:500}
 .nav-item.lane-inactive{opacity:.4}
 .nav-count{margin-left:auto;font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)}
 .nav-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.filter-reset{font-size:11px;color:var(--text-3);background:none;border:none;cursor:pointer;padding:4px 10px;text-decoration:underline}
+
+/* Mobile header + drawer + tabs (hidden on desktop) */
+.mtop{display:none}
+.mtabs{display:none}
+.drawer-scrim{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:280;opacity:0;pointer-events:none;transition:opacity .2s}
+.drawer-scrim.open{opacity:1;pointer-events:auto}
+
+/* Stats */
 .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
 .stat-label{font-size:10px;color:var(--text-3);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
-.stat-value{font-size:24px;font-weight:300;color:var(--text);line-height:1}
+.stat-value{font-size:24px;font-weight:300;line-height:1}
 .stat-sub{font-size:11px;color:var(--text-3);margin-top:3px}
+
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
 .page-title{font-size:20px;font-weight:500}
 .page-sub{font-size:12px;color:var(--text-3);margin-top:1px}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-md);background:var(--surface);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text-2);cursor:pointer;box-shadow:var(--shadow);transition:background .1s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 15px;border-radius:var(--radius-sm);border:1px solid var(--border-md);background:var(--surface);font-size:13px;color:var(--text-2);cursor:pointer;box-shadow:var(--shadow);min-height:38px}
 .btn:hover{background:var(--bg)}
 .btn-primary{color:#fff;border:none;box-shadow:none}
-.btn-primary:hover{filter:brightness(.9)}
+.btn-primary:hover{filter:brightness(.92)}
+.btn-danger{color:var(--danger);border-color:#f0c0bc}
+
+/* Quick add */
 .quick-add-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:18px;box-shadow:var(--shadow);flex-wrap:wrap}
-.quick-add-bar input[type=text]{flex:1;min-width:120px;border:none;background:transparent;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);outline:none}
+.quick-add-bar input[type=text]{flex:1;min-width:140px;border:none;background:transparent;font-size:14px;font-family:inherit;color:var(--text);outline:none}
 .quick-add-bar input[type=text]::placeholder{color:var(--text-3)}
-.qa-select,.qa-date{font-size:12px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text-2);padding:4px 8px;font-family:'DM Sans',sans-serif}
-.qa-btn{padding:5px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-md);background:var(--surface2);font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text-2);cursor:pointer}
+.qa-select,.qa-date{font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text-2);padding:7px 8px;font-family:inherit;min-height:36px;max-width:100%}
+.qa-btn{padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-md);background:var(--surface2);font-size:13px;font-family:inherit;color:var(--text-2);cursor:pointer;min-height:36px}
 .qa-btn:hover{background:var(--bg)}
+
+/* Focus blocks */
 .focus-block{margin-bottom:22px}
 .focus-block-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .fbc{font-size:10px;background:var(--surface2);color:var(--text-3);padding:1px 7px;border-radius:10px;font-weight:400}
-.focus-task-row{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;box-shadow:var(--shadow)}
-.focus-cat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.focus-proj-ref{font-size:11px;color:var(--text-3);flex-shrink:0;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.owner-badge{font-size:10px;font-weight:500;padding:1px 7px;border-radius:10px;flex-shrink:0;white-space:nowrap}
-.recur-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:#f0eefe;color:#5b4bb5;flex-shrink:0;white-space:nowrap}
+.collapse-toggle{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:11px;font-family:inherit;text-transform:none;letter-spacing:0;padding:2px 6px;margin-left:auto;text-decoration:underline}
+
+/* Task rows */
+.focus-task-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;box-shadow:var(--shadow)}
+.task-main{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.task-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.focus-cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.focus-proj-ref{font-size:11px;color:var(--text-3);flex-shrink:0;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.owner-badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;flex-shrink:0;white-space:nowrap}
+.recur-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:#f0eefe;color:#5b4bb5;flex-shrink:0;white-space:nowrap}
+.follow-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surface2);color:var(--text-2);flex-shrink:0;white-space:nowrap}
+.task-check{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border-md);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:none;padding:0}
+.task-check.done{background:#eaf4ee;border-color:var(--ok)}
+.task-check.done::after{content:'✓';font-size:12px;color:var(--ok);font-weight:500;line-height:1}
+.task-label{flex:1;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.task-label.done{color:var(--text-3);text-decoration:line-through}
+.task-due-tag{font-size:11px;flex-shrink:0;font-family:'DM Mono',monospace;white-space:nowrap}
+.tag-overdue{color:var(--danger)}.tag-soon{color:var(--warn)}.tag-normal{color:var(--text-3)}
+.task-action-btn{background:none;border:none;cursor:pointer;font-size:14px;color:var(--text-3);padding:6px 8px;border-radius:5px;opacity:0;transition:opacity .15s;flex-shrink:0;line-height:1}
+.focus-task-row:hover .task-action-btn,.task-row:hover .task-action-btn{opacity:1}
+.task-action-btn:hover{background:var(--surface2);color:var(--text-2)}
+@media (hover:none){.task-action-btn{opacity:1}}
+
 .week-day-group{margin-bottom:18px}
 .week-day-label{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding-bottom:7px;border-bottom:1px solid var(--border);margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.week-day-label.is-today{color:#b06a00}
-.week-day-label.is-past{opacity:.5}
-.project-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;box-shadow:var(--shadow);overflow:visible}
-.project-card:hover{box-shadow:var(--shadow-md)}
+.week-day-label.is-today{color:var(--warn)}
+.week-day-label.is-past{opacity:.55}
+
+/* Projects */
+.project-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;box-shadow:var(--shadow)}
 .project-header{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
-.proj-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.proj-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px}
 .proj-meta{flex:1;min-width:0}
 .proj-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:7px}
-.proj-name{font-size:14px;font-weight:500}
-.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;letter-spacing:.02em}
-.status-toggle{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;position:relative}
-.status-toggle:hover{opacity:.8}
-.status-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:200;min-width:130px;overflow:hidden}
-.status-dropdown button{display:block;width:100%;text-align:left;padding:7px 12px;font-size:12px;border:none;background:transparent;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text)}
+.proj-name{font-size:15px;font-weight:500;overflow-wrap:anywhere}
+.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.status-toggle{font-size:10px;font-weight:500;padding:4px 9px;border-radius:20px;border:none;cursor:pointer;position:relative;min-height:26px}
+.status-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:200;min-width:150px;overflow:hidden}
+.status-dropdown button{display:block;width:100%;text-align:left;padding:10px 12px;font-size:13px;border:none;background:transparent;cursor:pointer;color:var(--text)}
 .status-dropdown button:hover{background:var(--bg)}
 .proj-progress{display:flex;align-items:center;gap:10px}
 .bar-wrap{flex:1;height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
 .bar-fill{height:100%;border-radius:2px;transition:width .35s}
-.bar-pct{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3);min-width:30px;text-align:right}
+.bar-pct{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3);min-width:32px;text-align:right}
 .proj-due{font-size:11px;color:var(--text-3);margin-top:4px}
-.proj-chevron{font-size:18px;color:var(--text-3);transition:transform .2s;flex-shrink:0;margin-top:1px;line-height:1}
+.proj-chevron{font-size:18px;color:var(--text-3);transition:transform .2s;flex-shrink:0;line-height:1}
 .proj-chevron.open{transform:rotate(180deg)}
 .tasks-panel{border-top:1px solid var(--border)}
 .milestone-block{padding:12px 16px;border-bottom:1px solid var(--border)}
 .milestone-block:last-child{border-bottom:none}
-.milestone-name{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
-.task-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)}
+.milestone-name{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.ms-del{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:12px;padding:2px 6px;margin-left:auto}
+.ms-del:hover{color:var(--danger)}
+.task-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
 .task-row:last-of-type{border-bottom:none}
-.task-check{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border-md);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:none}
-.task-check.done{background:#eaf4ee;border-color:#2d7a4f}
-.task-check.done::after{content:'✓';font-size:10px;color:#2d7a4f;font-weight:500}
-.task-label{flex:1;font-size:13px}
-.task-label.done{color:var(--text-3);text-decoration:line-through}
-.task-due-tag{font-size:11px;flex-shrink:0;font-family:'DM Mono',monospace}
-.tag-overdue{color:#c0392b}.tag-soon{color:#b06a00}.tag-normal{color:var(--text-3)}
-.add-task-row{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
-.add-task-input{flex:1;min-width:120px;font-size:13px;padding:5px 9px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-.add-task-input::placeholder{color:var(--text-3)}
-.add-task-date,.add-task-owner,.add-task-recur{font-size:12px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text-2);font-family:'DM Sans',sans-serif}
-.add-task-btn{padding:5px 10px;font-size:12px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text-2)}
+.add-task-row{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.add-task-input{flex:1;min-width:150px;font-size:14px;padding:8px 10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:inherit}
+.add-task-date,.add-task-owner,.add-task-recur{font-size:13px;padding:8px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text-2);font-family:inherit;min-height:36px}
+.add-task-btn{padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-family:inherit;color:var(--text-2);min-height:36px}
 .add-task-btn:hover{background:var(--bg)}
 .notes-bar{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;background:var(--surface2);border-top:1px solid var(--border)}
-.notes-icon{font-size:12px;color:var(--text-3);padding-top:6px;flex-shrink:0}
-.notes-input{flex:1;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);resize:none;line-height:1.5;min-height:32px;font-family:'DM Sans',sans-serif}
-.notes-input::placeholder{color:var(--text-3)}
-.settings-panel{position:fixed;top:0;right:0;width:360px;height:100vh;background:var(--surface);border-left:1px solid var(--border);box-shadow:-4px 0 24px rgba(0,0,0,.1);z-index:300;overflow-y:auto;padding:24px;transform:translateX(100%);transition:transform .25s ease}
+.notes-icon{font-size:12px;color:var(--text-3);padding-top:8px;flex-shrink:0}
+.notes-input{flex:1;font-size:13px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);resize:vertical;line-height:1.5;min-height:40px;font-family:inherit}
+
+/* Settings */
+.settings-panel{position:fixed;top:0;right:0;width:380px;max-width:100vw;height:100vh;height:100dvh;background:var(--surface);border-left:1px solid var(--border);box-shadow:-4px 0 24px rgba(0,0,0,.1);z-index:300;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(24px + var(--safe-t)) 22px calc(28px + var(--safe-b));transform:translateX(101%);transition:transform .25s ease}
 .settings-panel.open{transform:translateX(0)}
 .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.2);z-index:299;display:none}
 .settings-overlay.open{display:block}
-.settings-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.settings-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
 .settings-title{font-size:16px;font-weight:500}
-.settings-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-3);line-height:1}
-.settings-close:hover{color:var(--text)}
+.settings-close{background:none;border:none;cursor:pointer;font-size:22px;color:var(--text-3);line-height:1;padding:4px 8px}
 .settings-section{margin-bottom:24px}
-.settings-section-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:12px}
+.settings-section-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.settings-hint{font-size:12px;color:var(--text-3);margin-bottom:10px;line-height:1.5}
 .settings-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.owner-name-input{flex:1;font-size:13px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-.del-btn{background:none;border:1px solid var(--border-md);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-3);font-size:13px;padding:4px 8px;font-family:'DM Sans',sans-serif}
-.del-btn:hover{color:#c0392b;border-color:#c0392b}
-.add-cat-row{display:flex;gap:8px;margin-top:4px}
-.add-cat-row input[type=text]{flex:1;font-size:13px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-.add-cat-row button{padding:6px 12px;font-size:12px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface2);cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text-2)}
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;z-index:400;padding:20px}
+.owner-name-input{flex:1;font-size:14px;padding:9px 10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:inherit;min-width:0}
+.del-btn{background:none;border:1px solid var(--border-md);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-3);font-size:13px;padding:8px 10px;font-family:inherit;flex-shrink:0}
+.del-btn:hover{color:var(--danger);border-color:var(--danger)}
+.add-cat-row{display:flex;gap:8px;margin-top:6px}
+.add-cat-row input[type=text]{flex:1;font-size:14px;padding:9px 10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:inherit;min-width:0}
+.add-cat-row button{padding:9px 14px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface2);cursor:pointer;font-family:inherit;color:var(--text-2);flex-shrink:0}
+.color-swatch{width:38px;height:38px;border:1px solid var(--border-md);border-radius:var(--radius-sm);cursor:pointer;padding:2px;flex-shrink:0;background:var(--bg)}
+
+/* Modals */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;z-index:400;padding:20px}
 .modal-backdrop.hidden{display:none}
-.modal{background:var(--surface);border-radius:var(--radius);padding:24px;width:100%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.13)}
-.modal-title{font-size:16px;font-weight:500;margin-bottom:16px}
-.form-field{margin-bottom:12px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 8px 32px rgba(0,0,0,.14)}
+.modal-title{font-size:17px;font-weight:500;margin-bottom:16px}
+.form-field{margin-bottom:13px;min-width:0}
 .form-label{font-size:11px;font-weight:500;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;display:block}
-.form-input,.form-select,.form-textarea{width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-.form-textarea{resize:none;min-height:60px}
+.form-input,.form-select,.form-textarea{width:100%;font-size:14px;padding:10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:inherit;min-height:42px}
+.form-textarea{resize:vertical;min-height:64px}
 .form-row{display:flex;gap:10px}
-.form-row .form-field{flex:1}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.form-row .form-field{flex:1;min-width:0}
+.form-note{font-size:11px;color:var(--text-3);margin-top:5px;line-height:1.45}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.modal-actions .spacer{margin-right:auto}
 .empty-state{text-align:center;padding:2rem 1rem;color:var(--text-3);font-size:13px}
-.task-action-btn{background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-3);padding:2px 5px;border-radius:4px;opacity:0;transition:opacity .15s;flex-shrink:0}
-.focus-task-row:hover .task-action-btn,.task-row:hover .task-action-btn{opacity:1}
-.task-action-btn:hover{background:var(--surface2);color:var(--text-2)}
-.task-action-btn.del:hover{color:#c0392b}
-::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:3px}
+
+/* Follow-up prompt */
+.followup{position:fixed;left:16px;right:16px;bottom:calc(16px + var(--safe-b) + var(--tabbar-h));z-index:450;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius);box-shadow:0 8px 28px rgba(0,0,0,.16);padding:14px 16px;max-width:460px;margin-left:auto;transform:translateY(20px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.followup.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.fu-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
+.fu-title{font-size:13px;font-weight:500;flex:1;min-width:0}
+.fu-done{font-size:12px;color:var(--text-3);margin-top:2px;overflow-wrap:anywhere}
+.fu-close{background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;flex-shrink:0}
+.fu-input{width:100%;font-size:14px;padding:10px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:inherit;margin-bottom:8px}
+.fu-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fu-row select,.fu-row input[type=date]{font-size:13px;padding:8px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text-2);font-family:inherit;min-height:38px;flex:1;min-width:120px}
+.fu-add{flex-shrink:0;padding:9px 16px;border:none;border-radius:var(--radius-sm);color:#fff;font-size:13px;cursor:pointer;min-height:38px}
+
+::-webkit-scrollbar{width:7px;height:7px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:4px}
+
+/* ══ MOBILE ══════════════════════════════════════════════ */
+@media (max-width:860px){
+  :root{--tabbar-h:58px}
+  .shell{display:block;height:auto;overflow:visible}
+
+  .mtop{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:120;background:rgba(250,249,247,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:calc(10px + var(--safe-t)) 14px 10px}
+  .mtop-title{font-size:15px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mtop-btn{background:none;border:1px solid var(--border-md);border-radius:var(--radius-sm);color:var(--text-2);font-size:14px;cursor:pointer;padding:0 11px;height:38px;display:flex;align-items:center;gap:5px;flex-shrink:0;background:var(--surface)}
+  .mtop-btn .fdot{width:6px;height:6px;border-radius:50%;background:var(--warn);display:none}
+  .mtop-btn.filtered .fdot{display:block}
+
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:280px;max-width:84vw;z-index:290;transform:translateX(-101%);transition:transform .22s ease;padding:calc(20px + var(--safe-t)) 0 calc(20px + var(--safe-b));box-shadow:4px 0 24px rgba(0,0,0,.14);border-right:none}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar .nav-item{padding:11px 12px;font-size:14px}
+  .sidebar-logo{padding:0 18px 16px}
+
+  .main{padding:16px 14px calc(20px + var(--tabbar-h) + var(--safe-b));overflow:visible}
+
+  .mtabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:200;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--border);padding-bottom:var(--safe-b)}
+  .mtab{position:relative;flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;font-size:10px;color:var(--text-3);cursor:pointer;height:58px;font-weight:500;letter-spacing:.02em}
+  .mtab .mtab-badge{position:absolute;transform:translate(16px,-11px);font-family:'DM Mono',monospace;font-size:9px;background:var(--danger);color:#fff;border-radius:9px;padding:0 5px;line-height:15px;min-width:15px;text-align:center}
+
+  .summary-row{grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:18px}
+  .stat-card{padding:11px 12px}
+  .stat-value{font-size:21px}
+
+  .topbar{margin-bottom:14px}
+  .page-title{font-size:18px}
+  .btn{width:100%}
+  .topbar .btn{width:auto}
+
+  /* Quick add stacks */
+  .quick-add-bar{padding:11px 12px;gap:7px}
+  .quick-add-bar>svg{display:none}
+  .quick-add-bar input[type=text]{flex:1 1 100%;min-width:0;font-size:16px;padding:4px 0}
+  .qa-select,.qa-date{flex:1 1 calc(50% - 4px);min-width:0;font-size:14px}
+  .qa-btn{flex:1 1 100%;font-size:14px;min-height:40px}
+
+  /* Two-line task rows */
+  .focus-task-row{flex-wrap:wrap;padding:11px 13px;gap:8px}
+  .task-main{flex:1 1 100%}
+  .task-meta{flex:1 1 100%;justify-content:flex-start;padding-left:32px;gap:6px}
+  .task-label{font-size:15px}
+  .focus-proj-ref{max-width:44vw}
+  .task-check{width:22px;height:22px}
+  .task-action-btn{font-size:16px;padding:7px 6px}
+
+  .task-row{flex-wrap:wrap;gap:8px;padding:10px 0}
+  .task-row .task-main{flex:1 1 100%}
+  .task-row .task-meta{flex:1 1 100%;justify-content:flex-start;padding-left:32px}
+
+  .project-header{padding:13px 14px}
+  .milestone-block{padding:12px 14px}
+  .add-task-row{gap:7px}
+  .add-task-input{flex:1 1 100%;font-size:16px}
+  .add-task-date,.add-task-owner,.add-task-recur{flex:1 1 calc(50% - 4px);min-width:0;font-size:14px}
+  .add-task-btn{flex:1 1 100%;font-size:14px;min-height:40px}
+  .notes-input{font-size:16px}
+
+  .settings-panel{width:100vw;max-width:100vw;border-left:none}
+
+  /* Modals become bottom sheets */
+  .modal-backdrop{align-items:flex-end;padding:0}
+  .modal{max-width:100%;border-radius:16px 16px 0 0;padding:22px 18px calc(22px + var(--safe-b));max-height:92dvh}
+  .form-row{flex-wrap:wrap;gap:0}
+  .form-row .form-field{flex:1 1 100%}
+  .modal-actions{gap:8px}
+  .modal-actions .btn{flex:1 1 calc(50% - 4px)}
+  .modal-actions .spacer{margin-right:0;flex:1 1 100%;order:3}
+
+  .followup{left:12px;right:12px;max-width:none;padding:13px 14px}
+  .fu-input{font-size:16px}
+
+  .save-indicator{left:16px;right:auto;bottom:calc(12px + var(--safe-b) + var(--tabbar-h))}
+
+  /* iOS zooms the whole page when a focused field is under 16px */
+  .form-input,.form-select,.form-textarea,
+  .owner-name-input,.add-cat-row input[type=text],
+  .qa-select,.qa-date,.add-task-date,.add-task-owner,.add-task-recur,
+  .fu-row select,.fu-row input[type=date]{font-size:16px}
+}
+
+@media (max-width:400px){
+  .qa-select,.qa-date{flex:1 1 100%}
+  .add-task-date,.add-task-owner,.add-task-recur{flex:1 1 100%}
+  .modal-actions .btn{flex:1 1 100%}
+}
 </style>
 </head>
 <body>
 
-<!-- Auth screen -->
+<!-- Reconnect banner -->
+<div class="reconnect-bar" id="reconnect-bar">
+  <span id="reconnect-msg">Your Google session expired. Changes are saved on this device only until you reconnect.</span>
+  <button onclick="reconnect()">Reconnect</button>
+</div>
+
+<!-- Sign in -->
 <div id="auth-screen" class="auth-screen">
   <div class="auth-logo">🏡</div>
-  <div class="auth-title" id="auth-title">Our Tracker</div>
-  <div class="auth-sub">Sign in with Google to load your shared tracker. Your data is stored in a Google Drive file you both share.</div>
+  <div class="auth-title">Our Tracker</div>
+  <div class="auth-sub">Sign in with Google to open the shared tracker. Everything lives in one Drive file you both have access to.</div>
   <button class="auth-btn" id="sign-in-btn" onclick="handleSignIn()">
-    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z"/></svg>
-    Sign in with Google
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z"/></svg>
+    <span id="sign-in-label">Sign in with Google</span>
   </button>
   <div id="auth-error" class="auth-error" style="display:none"></div>
 </div>
 
-<!-- Main app (hidden until signed in) -->
+<!-- App -->
 <div id="app" style="display:none">
+
+  <!-- Mobile header -->
+  <div class="mtop">
+    <button class="mtop-btn" id="mtop-filter" onclick="openDrawer()" aria-label="Menu and filters">☰<span class="fdot"></span></button>
+    <div class="mtop-title" id="mtop-title">Today</div>
+    <button class="mtop-btn" onclick="openSettings()" aria-label="Settings">⚙</button>
+  </div>
+
+  <div class="drawer-scrim" id="drawer-scrim" onclick="closeDrawer()"></div>
+
   <div class="shell">
     <aside class="sidebar" id="sidebar"></aside>
     <main class="main">
@@ -185,421 +348,1257 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
         <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value" id="stat-overdue">0</div><div class="stat-sub">need attention</div></div>
         <div class="stat-card"><div class="stat-label">Due this week</div><div class="stat-value" id="stat-week">0</div><div class="stat-sub">tasks coming up</div></div>
       </div>
+
       <div id="view-focus">
         <div class="topbar"><div><div class="page-title">Today</div><div class="page-sub" id="today-date-label"></div></div></div>
         <div class="quick-add-bar">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-3)" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v6M5 8h6"/></svg>
-          <input type="text" id="today-quick-input" placeholder="Add a quick task for today..." onkeydown="if(event.key==='Enter')quickAddToday()" />
-          <select class="qa-select" id="today-quick-cat"></select>
-          <select class="qa-select" id="today-quick-owner"></select>
-          <select class="qa-select" id="today-quick-recur"><option value="none">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
-          <button class="qa-btn" onclick="quickAddToday()">Add</button>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-3)" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 5v6M5 8h6"/></svg>
+          <input type="text" id="today-quick-input" placeholder="Add a task for today..." onkeydown="if(event.key==='Enter')quickAddToday()" />
+          <select class="qa-select" id="today-quick-cat" aria-label="Category"></select>
+          <select class="qa-select" id="today-quick-owner" aria-label="Owner"></select>
+          <select class="qa-select" id="today-quick-recur" aria-label="Repeat"><option value="none">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+          <button class="qa-btn" onclick="quickAddToday()">Add task</button>
         </div>
-        <div class="focus-block"><div class="focus-block-title">Overdue &amp; due today <span class="fbc" id="cnt-urgent"></span></div><div id="focus-urgent-list"></div></div>
+        <div class="focus-block"><div class="focus-block-title">Overdue and due today <span class="fbc" id="cnt-urgent"></span></div><div id="focus-urgent-list"></div></div>
         <div class="focus-block"><div class="focus-block-title">Due this week <span class="fbc" id="cnt-week-focus"></span></div><div id="focus-week-list"></div></div>
-        <div class="focus-block"><div class="focus-block-title">All other open tasks <span class="fbc" id="cnt-other"></span></div><div id="focus-other-list"></div></div>
+        <div class="focus-block"><div class="focus-block-title">Everything else open <span class="fbc" id="cnt-other"></span></div><div id="focus-other-list"></div></div>
+        <div class="focus-block"><div class="focus-block-title">Finished recently <span class="fbc" id="cnt-done"></span><button class="collapse-toggle" id="done-toggle" onclick="toggleDoneBlock()">Show</button></div><div id="focus-done-list" style="display:none"></div></div>
       </div>
+
       <div id="view-week" style="display:none">
         <div class="topbar"><div><div class="page-title">This Week</div><div class="page-sub" id="week-range-label"></div></div></div>
         <div class="quick-add-bar">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-3)" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v6M5 8h6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-3)" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 5v6M5 8h6"/></svg>
           <input type="text" id="week-quick-input" placeholder="Add a task for this week..." onkeydown="if(event.key==='Enter')quickAddWeek()" />
-          <select class="qa-select" id="week-quick-cat"></select>
-          <select class="qa-select" id="week-quick-owner"></select>
-          <select class="qa-select" id="week-quick-recur"><option value="none">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
-          <input type="date" class="qa-date" id="week-quick-date" />
-          <button class="qa-btn" onclick="quickAddWeek()">Add</button>
+          <select class="qa-select" id="week-quick-cat" aria-label="Category"></select>
+          <select class="qa-select" id="week-quick-owner" aria-label="Owner"></select>
+          <select class="qa-select" id="week-quick-recur" aria-label="Repeat"><option value="none">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+          <input type="date" class="qa-date" id="week-quick-date" aria-label="Due date" />
+          <button class="qa-btn" onclick="quickAddWeek()">Add task</button>
         </div>
         <div id="week-content"></div>
       </div>
+
       <div id="view-projects" style="display:none">
-        <div class="topbar"><div><div class="page-title">Projects</div></div><button class="btn btn-primary" id="new-proj-btn" onclick="openAddProject()">+ New project</button></div>
+        <div class="topbar"><div><div class="page-title">Projects</div></div><button class="btn btn-primary" onclick="openAddProject()">+ New project</button></div>
         <div id="projects-list"></div>
       </div>
     </main>
   </div>
 
-  <!-- Settings -->
-  <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
-  <div class="settings-panel" id="settings-panel">
-    <div class="settings-header"><span class="settings-title">⚙ Settings</span><button class="settings-close" onclick="closeSettings()">✕</button></div>
-    <div class="settings-section">
-      <div class="settings-section-title">Owner names</div>
-      <div class="settings-row"><input type="text" class="owner-name-input" id="owner-name-0" /><span style="font-size:11px;color:var(--text-3)">Person 1</span></div>
-      <div class="settings-row"><input type="text" class="owner-name-input" id="owner-name-1" /><span style="font-size:11px;color:var(--text-3)">Person 2</span></div>
-      <div class="settings-row"><input type="text" class="owner-name-input" id="owner-name-2" /><span style="font-size:11px;color:var(--text-3)">Shared</span></div>
-    </div>
-    <div class="settings-section">
-      <div class="settings-section-title">Categories</div>
-      <div id="cat-settings-list"></div>
-      <div class="add-cat-row">
-        <input type="text" id="new-cat-name" placeholder="New category..." onkeydown="if(event.key==='Enter')addCategory()" />
-        <input type="color" id="new-cat-color" value="#888888" style="width:36px;height:34px;border:1px solid var(--border-md);border-radius:var(--radius-sm);cursor:pointer;padding:2px" />
-        <button onclick="addCategory()">Add</button>
-      </div>
-    </div>
-    <div class="settings-section">
-      <div class="settings-section-title">Tracker title</div>
-      <div class="settings-row"><input type="text" class="owner-name-input" id="tracker-title-input" /></div>
-    </div>
-    <div style="margin-top:8px"><button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveSettings()">Save settings</button></div>
-  </div>
+  <!-- Mobile tab bar -->
+  <nav class="mtabs">
+    <button class="mtab" id="mtab-focus" onclick="switchView('focus')">
+      <svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg>
+      <span>Today</span><span class="mtab-badge" id="mtab-badge" style="display:none"></span>
+    </button>
+    <button class="mtab" id="mtab-week" onclick="switchView('week')">
+      <svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M1 7h14M5 1v4M11 1v4"/></svg>
+      <span>Week</span>
+    </button>
+    <button class="mtab" id="mtab-projects" onclick="switchView('projects')">
+      <svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      <span>Projects</span>
+    </button>
+  </nav>
+</div>
 
-  <!-- Modals -->
-  <div class="modal-backdrop hidden" id="modal-project">
-    <div class="modal">
-      <div class="modal-title">New project</div>
-      <div class="form-row">
-        <div class="form-field" style="flex:2"><label class="form-label">Project name</label><input class="form-input" id="np-name" /></div>
-        <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="np-cat"></select></div>
-      </div>
-      <div class="form-row">
-        <div class="form-field"><label class="form-label">Owner</label><select class="form-select" id="np-owner"></select></div>
-        <div class="form-field"><label class="form-label">Status</label><select class="form-select" id="np-status"><option value="active">Active</option><option value="at-risk">Needs attention</option><option value="on-hold">On hold</option></select></div>
-      </div>
-      <div class="form-row">
-        <div class="form-field"><label class="form-label">Due date</label><input class="form-input" id="np-due" type="date" /></div>
-        <div class="form-field"><label class="form-label">Notes</label><input class="form-input" id="np-notes-init" placeholder="Optional" /></div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn" onclick="closeModal('modal-project')">Cancel</button>
-        <button class="btn btn-primary" onclick="submitProject()">Add project</button>
-      </div>
+<!-- Settings -->
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
+<div class="settings-panel" id="settings-panel">
+  <div class="settings-header"><span class="settings-title">Settings</span><button class="settings-close" onclick="closeSettings()" aria-label="Close">✕</button></div>
+  <div class="settings-section">
+    <div class="settings-section-title">Who's who</div>
+    <div class="settings-row"><input type="text" class="owner-name-input" id="owner-name-0" /><span style="font-size:11px;color:var(--text-3);flex-shrink:0">Person 1</span></div>
+    <div class="settings-row"><input type="text" class="owner-name-input" id="owner-name-1" /><span style="font-size:11px;color:var(--text-3);flex-shrink:0">Person 2</span></div>
+    <div class="settings-row"><input type="text" class="owner-name-input" id="owner-name-2" /><span style="font-size:11px;color:var(--text-3);flex-shrink:0">Shared</span></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">Categories</div>
+    <div class="settings-hint">Renaming a category moves everything in it across with you. Deleting one asks where its items should go.</div>
+    <div id="cat-settings-list"></div>
+    <div class="add-cat-row">
+      <input type="text" id="new-cat-name" placeholder="New category..." onkeydown="if(event.key==='Enter')addCategory()" />
+      <input type="color" id="new-cat-color" class="color-swatch" value="#888888" aria-label="Category color" />
+      <button onclick="addCategory()">Add</button>
     </div>
   </div>
-  <div class="modal-backdrop hidden" id="modal-milestone">
-    <div class="modal">
-      <div class="modal-title">Add milestone</div>
-      <div class="form-field"><label class="form-label">Milestone name</label><input class="form-input" id="ms-name" /></div>
-      <input type="hidden" id="ms-proj-id" />
-      <div class="modal-actions">
-        <button class="btn" onclick="closeModal('modal-milestone')">Cancel</button>
-        <button class="btn btn-primary" onclick="submitMilestone()">Add</button>
-      </div>
+  <div class="settings-section">
+    <div class="settings-section-title">Tracker name</div>
+    <div class="settings-row"><input type="text" class="owner-name-input" id="tracker-title-input" /></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">Sync</div>
+    <div class="settings-hint" id="sync-status-text">Checking...</div>
+    <button class="btn" style="width:100%" onclick="forceSync()">Check for updates now</button>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveSettings()">Save settings</button>
+</div>
+
+<!-- Project modal -->
+<div class="modal-backdrop hidden" id="modal-project">
+  <div class="modal">
+    <div class="modal-title" id="np-title">New project</div>
+    <input type="hidden" id="np-id" />
+    <div class="form-row">
+      <div class="form-field" style="flex:2"><label class="form-label" for="np-name">Project name</label><input class="form-input" id="np-name" /></div>
+      <div class="form-field"><label class="form-label" for="np-cat">Category</label><select class="form-select" id="np-cat"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label class="form-label" for="np-owner">Owner</label><select class="form-select" id="np-owner"></select></div>
+      <div class="form-field"><label class="form-label" for="np-status">Status</label><select class="form-select" id="np-status"><option value="active">Active</option><option value="at-risk">Needs attention</option><option value="on-hold">On hold</option><option value="complete">Complete</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label class="form-label" for="np-due">Due date</label><input class="form-input" id="np-due" type="date" /></div>
+      <div class="form-field"><label class="form-label" for="np-notes-init">Notes</label><input class="form-input" id="np-notes-init" placeholder="Optional" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger spacer" id="np-delete" onclick="deleteProjectFromModal()" style="display:none">Delete project</button>
+      <button class="btn" onclick="closeModal('modal-project')">Cancel</button>
+      <button class="btn btn-primary" id="np-submit" onclick="submitProject()">Add project</button>
     </div>
   </div>
 </div>
 
-  <!-- Edit task modal -->
-  <div class="modal-backdrop hidden" id="modal-edit-task">
-    <div class="modal">
-      <div class="modal-title">Edit task</div>
-      <input type="hidden" id="et-proj-id" />
-      <input type="hidden" id="et-task-id" />
-      <input type="hidden" id="et-is-quick" />
-      <div class="form-field"><label class="form-label">Task</label><input class="form-input" id="et-text" /></div>
-      <div class="form-row">
-        <div class="form-field"><label class="form-label">Owner</label><select class="form-select" id="et-owner"></select></div>
-        <div class="form-field"><label class="form-label">Due date</label><input class="form-input" id="et-due" type="date" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-field"><label class="form-label">Recurrence</label>
-          <select class="form-select" id="et-recur">
-            <option value="none">One-time</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </div>
-        <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="et-cat"></select></div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn" style="color:#c0392b;border-color:#f0c0bc" onclick="deleteTaskFromModal()">Delete</button>
-        <button class="btn" onclick="closeModal('modal-edit-task')">Cancel</button>
-        <button class="btn btn-primary" onclick="submitEditTask()">Save</button>
-      </div>
+<!-- Milestone modal -->
+<div class="modal-backdrop hidden" id="modal-milestone">
+  <div class="modal">
+    <div class="modal-title">Add a group</div>
+    <div class="form-field"><label class="form-label" for="ms-name">Group name</label><input class="form-input" id="ms-name" placeholder="e.g. Vendors, Week of the 12th" /></div>
+    <input type="hidden" id="ms-proj-id" />
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-milestone')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitMilestone()">Add group</button>
     </div>
+  </div>
+</div>
+
+<!-- Edit task modal -->
+<div class="modal-backdrop hidden" id="modal-edit-task">
+  <div class="modal">
+    <div class="modal-title">Edit task</div>
+    <input type="hidden" id="et-task-id" />
+    <div class="form-field"><label class="form-label" for="et-text">Task</label><input class="form-input" id="et-text" /></div>
+    <div class="form-row">
+      <div class="form-field"><label class="form-label" for="et-owner">Owner</label><select class="form-select" id="et-owner"></select></div>
+      <div class="form-field"><label class="form-label" for="et-due">Due date</label><input class="form-input" id="et-due" type="date" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label class="form-label" for="et-recur">Repeat</label>
+        <select class="form-select" id="et-recur">
+          <option value="none">One-time</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label" for="et-cat">Category</label><select class="form-select" id="et-cat"></select></div>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="et-move">Lives in</label>
+      <select class="form-select" id="et-move"></select>
+      <div class="form-note">Move this task to a different project group, or out to quick tasks.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger spacer" onclick="deleteTaskFromModal()">Delete</button>
+      <button class="btn" onclick="closeModal('modal-edit-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditTask()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Follow-up prompt -->
+<div class="followup" id="followup">
+  <div class="fu-head">
+    <div style="flex:1;min-width:0">
+      <div class="fu-title">Add a follow-up?</div>
+      <div class="fu-done" id="fu-done-label"></div>
+    </div>
+    <button class="fu-close" onclick="dismissFollowUp()" aria-label="Dismiss">✕</button>
+  </div>
+  <input type="text" class="fu-input" id="fu-text" placeholder="What happens next?" onkeydown="if(event.key==='Enter')submitFollowUp()" />
+  <div class="fu-row">
+    <select id="fu-owner" aria-label="Owner"></select>
+    <input type="date" id="fu-due" aria-label="Due date" />
+    <button class="fu-add" id="fu-add" onclick="submitFollowUp()">Add</button>
   </div>
 </div>
 
 <div class="save-indicator" id="save-indicator">Saving...</div>
 
 <script>
-// ── CONFIGURATION — fill these in after setup ──────────────
-// Instructions in the setup guide
+// ── Drive config (unchanged from v1 so it keeps using the same file) ──
 const CLIENT_ID = '1098774701813-ojbmfsetekh42onsbp3jv3t6edh7kt69.apps.googleusercontent.com';
-const FILE_NAME = 'our-tracker-data.json';
-const FILE_ID = '1Sxxpk0amAJVQnqV_55rESEKRbiOi5eeh'; // shared Drive file
-// ──────────────────────────────────────────────────────────
+const FILE_ID   = '1Sxxpk0amAJVQnqV_55rESEKRbiOi5eeh';
+const SCOPE     = 'https://www.googleapis.com/auth/drive';
+const BUFFER_KEY = 'our-tracker-buffer-v2';
+const POLL_MS    = 7000;
+const TOMBSTONE_DAYS = 45;
 
 (function(){
 "use strict";
 
-// ── Google Drive API ───────────────────────────────────────
-let accessToken = null;
-let driveFileId = null;
-let saveTimer = null;
-
-function showSaving(msg){
-  const el = document.getElementById('save-indicator');
-  el.textContent = msg || 'Saving...';
-  el.classList.add('show');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(function(){
-    el.textContent = 'Saved ✓';
-    setTimeout(function(){ el.classList.remove('show'); }, 1200);
-  }, 900);
-}
-
-function handleSignIn(){
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/drive',
-    callback: function(resp){
-      if (resp.error){ showAuthError(resp.error); return; }
-      accessToken = resp.access_token;
-      document.getElementById('auth-screen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      loadFromDrive();
-    }
-  });
-  client.requestAccessToken();
-}
-
-async function loadFromDrive(){
-  showSaving('Loading...');
-  try {
-    // Use the hardcoded shared file ID directly — works for both Colin and Sophia
-    driveFileId = FILE_ID;
-    const resp = await fetch(
-      'https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media',
-      { headers: { Authorization: 'Bearer ' + accessToken } }
-    );
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.projects) projects = data.projects;
-      if (data.quickTasks) quickTasks = data.quickTasks;
-      if (data.notes) notes = data.notes;
-      if (data.cfg) {
-        cfg = data.cfg;
-        cfg.cats.forEach(function(c){ activeCats[c.name] = true; });
-        cfg.owners.forEach(function(o){ activeOwners[o] = true; });
-      }
-    }
-    document.getElementById('save-indicator').classList.remove('show');
-    bootApp();
-  } catch(e){
-    showAuthError('Could not load data: ' + e.message);
-  }
-}
-
-let lastSavedVersion = null;
-let isSaving = false;
-
-async function saveToDrive(){
-  if (!accessToken) return;
-  isSaving = true;
-  showSaving();
-  const payload = JSON.stringify({ projects, quickTasks, notes, cfg });
-  lastSavedVersion = payload; // track what we saved so sync doesn't re-render it
-  try {
-    if (driveFileId){
-      await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media',{
-        method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-        body: payload
-      });
-    } else {
-      const meta = await fetch('https://www.googleapis.com/drive/v3/files',{
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: FILE_NAME, mimeType: 'application/json' })
-      });
-      const metaData = await meta.json();
-      driveFileId = metaData.id;
-      await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media',{
-        method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-        body: payload
-      });
-    }
-  } catch(e){ console.error('Save failed:', e); }
-  isSaving = false;
-}
-
-// Silent background sync — picks up changes from the other person
-async function syncFromDrive(){
-  if(!accessToken || isSaving || !driveFileId) return;
-  try {
-    const resp = await fetch(
-      'https://www.googleapis.com/drive/v3/files/'+driveFileId+'?alt=media',
-      {headers:{Authorization:'Bearer '+accessToken}}
-    );
-    const data = await resp.json();
-    const incoming = JSON.stringify(data);
-    if(lastSavedVersion && incoming === lastSavedVersion) return;
-    if(data.projects) projects = data.projects;
-    if(data.quickTasks) quickTasks = data.quickTasks;
-    if(data.notes) notes = data.notes;
-    if(data.cfg) cfg = data.cfg;
-    lastSavedVersion = incoming;
-    render();
-  } catch(e){ /* silent fail */ }
-}
-
-function showAuthError(msg){
-  const el = document.getElementById('auth-error');
-  el.textContent = msg; el.style.display = 'block';
-}
-
-// ── Config ─────────────────────────────────────────────────
+// ══ State ═══════════════════════════════════════════════════
 let cfg = {
   cats: [
-    {name:'Home',    color:'#2a6eaa'},
-    {name:'Wedding', color:'#a0477a'},
-    {name:'Finance', color:'#2d7a4f'},
-    {name:'Social',  color:'#b06a00'},
-    {name:'Other',   color:'#5b4bb5'}
+    {id:'c-home',    name:'Home',    color:'#2a6eaa'},
+    {id:'c-wedding', name:'Wedding', color:'#a0477a'},
+    {id:'c-finance', name:'Finance', color:'#2d7a4f'},
+    {id:'c-social',  name:'Social',  color:'#b06a00'},
+    {id:'c-other',   name:'Other',   color:'#5b4bb5'}
   ],
   owners: ['Colin','Sophia','Both'],
-  title: 'Our Tracker'
+  title: 'Our Tracker',
+  updatedAt: 0
 };
-const STATUS_STYLE = {
-  active:    'background:#eaf4ee;color:#1e5436',
-  'at-risk': 'background:#fef3e2;color:#854f0b',
-  'on-hold': 'background:#f0efe9;color:#6b6a66',
-  complete:  'background:#edf3fb;color:#1a4c80'
-};
-const STATUS_CYCLE = ['active','at-risk','on-hold','complete'];
-
-// ── State ──────────────────────────────────────────────────
-let projects = [], notes = {}, quickTasks = [];
-let _taskRegistry = {}; // id -> enriched task object for edit modal
+let projects = [], quickTasks = [], notes = {};
 let activeCats = {}, activeOwners = {};
 const openProjects = {};
 let currentView = 'focus';
-let _id = Date.now();
-function uid(){ return ++_id; }
+let showDone = false;
 
-// default active maps
-cfg.cats.forEach(function(c){ activeCats[c.name] = true; });
-cfg.owners.forEach(function(o){ activeOwners[o] = true; });
+const STATUS_STYLE = {
+  active:'background:#eaf4ee;color:#1e5436',
+  'at-risk':'background:#fef3e2;color:#854f0b',
+  'on-hold':'background:#f0efe9;color:#6b6a66',
+  complete:'background:#edf3fb;color:#1a4c80'
+};
+const STATUS_LABEL = {active:'Active','at-risk':'Needs attention','on-hold':'On hold',complete:'Complete'};
 
-function save(){ saveToDrive(); }
+function newId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID().slice(0,18);
+  return 'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+}
+function now(){ return Date.now(); }
+function touch(o){ o.updatedAt = now(); return o; }
 
-// ── Dates ──────────────────────────────────────────────────
-const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const TODAY_STR = TODAY.toISOString().slice(0,10);
+// ══ Dates (local, not UTC) ══════════════════════════════════
+function ymd(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+let TODAY = new Date(); TODAY.setHours(0,0,0,0);
+let TODAY_STR = ymd(TODAY);
+function refreshToday(){
+  const d = new Date(); d.setHours(0,0,0,0);
+  if(ymd(d) !== TODAY_STR){ TODAY = d; TODAY_STR = ymd(d); return true; }
+  return false;
+}
+function parseDate(ds){ const p = ds.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
 function getWB(){
   const s = new Date(TODAY); s.setDate(s.getDate()-s.getDay());
   const e = new Date(s); e.setDate(e.getDate()+6);
-  return {ws:s, we:e, wsStr:s.toISOString().slice(0,10), weStr:e.toISOString().slice(0,10)};
+  return {ws:s, we:e, wsStr:ymd(s), weStr:ymd(e)};
 }
 function daysUntil(ds){
   if(!ds) return null;
-  const d = new Date(ds+'T00:00:00'); d.setHours(0,0,0,0);
+  const d = parseDate(ds); d.setHours(0,0,0,0);
   return Math.round((d-TODAY)/86400000);
 }
+function addDays(ds, n){ const d = ds?parseDate(ds):new Date(TODAY); d.setDate(d.getDate()+n); return ymd(d); }
 function dueBadge(ds){
   const n = daysUntil(ds);
   if(n===null) return {label:'',cls:''};
-  if(n<0)  return {label:Math.abs(n)+'d overdue',cls:'tag-overdue'};
+  if(n<0)   return {label:Math.abs(n)+'d overdue',cls:'tag-overdue'};
   if(n===0) return {label:'Due today',cls:'tag-soon'};
   if(n<=3)  return {label:'In '+n+'d',cls:'tag-soon'};
-  return {label:new Date(ds+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}),cls:'tag-normal'};
+  return {label:parseDate(ds).toLocaleDateString('en-US',{month:'short',day:'numeric'}),cls:'tag-normal'};
 }
-function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
-function lighten(hex){
-  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return 'rgba('+r+','+g+','+b+',.12)';
-}
-function catStyle(cat){
-  const c = cfg.cats.find(function(c){ return c.name===cat; });
-  if(!c) return {color:'#888',bg:'#f0f0f0',text:'#444'};
-  return {color:c.color, bg:lighten(c.color), text:c.color};
-}
-function ownerStyle(owner){
-  const palette = [{bg:'#edf3fb',text:'#1a4c80'},{bg:'#f9eef5',text:'#7a2e5c'},{bg:'#eaf4ee',text:'#1e5436'},{bg:'#fef3e2',text:'#7a4a00'},{bg:'#f0eefe',text:'#3d3186'}];
-  const idx = cfg.owners.indexOf(owner);
-  return palette[idx % palette.length] || palette[0];
-}
-function accentColor(){ return cfg.cats[1] ? cfg.cats[1].color : '#a0477a'; }
 function nextRecurringDue(ds, recur){
-  if(!recur||recur==='none') return null;
-  const base = new Date(Math.max(TODAY.getTime(), new Date(ds+'T00:00:00').getTime()));
+  if(!recur || recur==='none') return null;
+  const start = ds ? parseDate(ds) : new Date(TODAY);
+  const base = new Date(Math.max(TODAY.getTime(), start.getTime()));
   base.setHours(0,0,0,0);
   if(recur==='daily') base.setDate(base.getDate()+1);
   else if(recur==='weekly') base.setDate(base.getDate()+7);
   else if(recur==='monthly') base.setMonth(base.getMonth()+1);
-  return base.toISOString().slice(0,10);
+  return ymd(base);
 }
-function recurLabel(recur){ return {daily:'↻ Daily',weekly:'↻ Weekly',monthly:'↻ Monthly'}[recur]||''; }
+function recurLabel(r){ return {daily:'Daily',weekly:'Weekly',monthly:'Monthly'}[r] ? '↻ '+{daily:'Daily',weekly:'Weekly',monthly:'Monthly'}[r] : ''; }
 
-// ── Boot ───────────────────────────────────────────────────
-function bootApp(){
+// ══ Helpers ═════════════════════════════════════════════════
+function esc(s){ return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function lighten(hex){
+  if(!/^#[0-9a-f]{6}$/i.test(hex||'')) return 'rgba(0,0,0,.06)';
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+',.12)';
+}
+function catStyle(name){
+  const c = cfg.cats.find(function(c){ return c.name===name; });
+  if(!c) return {color:'#9a9894',bg:'#f0efec',text:'#6b6a66'};
+  return {color:c.color, bg:lighten(c.color), text:c.color};
+}
+function ownerStyle(o){
+  const palette=[{bg:'#edf3fb',text:'#1a4c80'},{bg:'#f9eef5',text:'#7a2e5c'},{bg:'#eaf4ee',text:'#1e5436'},{bg:'#fef3e2',text:'#7a4a00'},{bg:'#f0eefe',text:'#3d3186'}];
+  const i = cfg.owners.indexOf(o);
+  return palette[(i<0?0:i) % palette.length];
+}
+function accentColor(){ return (cfg.cats[1]&&cfg.cats[1].color) || (cfg.cats[0]&&cfg.cats[0].color) || '#a0477a'; }
+function alive(a){ return (a||[]).filter(function(x){ return !x.deleted; }); }
+function defaultOwner(){ return cfg.owners[cfg.owners.length-1]; }
+
+// ══ Migration ═══════════════════════════════════════════════
+function migrate(data){
+  if(!data || typeof data !== 'object') return null;
+  const out = {cfg:null, projects:[], quickTasks:[], notes:{}};
+
+  if(data.cfg){
+    const c = data.cfg;
+    out.cfg = {
+      cats: (c.cats||[]).map(function(x,i){ return {id:x.id||('c-'+(String(x.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')||('x'+i))), name:x.name, color:x.color||'#888888'}; }),
+      owners: c.owners||['Colin','Sophia','Both'],
+      title: c.title||'Our Tracker',
+      updatedAt: c.updatedAt||0
+    };
+    if(!out.cfg.cats.length) out.cfg = null;
+  }
+
+  function mTask(t, inheritCat){
+    return {
+      id: String(t.id),
+      text: t.text||'',
+      done: !!t.done,
+      due: t.due||null,
+      owner: t.owner||null,
+      recur: t.recur||'none',
+      cat: t.cat||inheritCat||null,
+      completedAt: t.completedAt||(t.done?1:0),
+      followUpOf: t.followUpOf||null,
+      updatedAt: t.updatedAt||0,
+      deleted: !!t.deleted
+    };
+  }
+
+  out.projects = (data.projects||[]).map(function(p){
+    return {
+      id: String(p.id),
+      name: p.name||'Untitled',
+      cat: p.cat||null,
+      owner: p.owner||null,
+      status: p.status||'active',
+      due: p.due||null,
+      updatedAt: p.updatedAt||0,
+      deleted: !!p.deleted,
+      milestones: (p.milestones||[]).map(function(m, mi){
+        return {
+          id: m.id || ('m-'+String(p.id)+'-'+mi),
+          label: m.label||'Tasks',
+          updatedAt: m.updatedAt||0,
+          deleted: !!m.deleted,
+          tasks: (m.tasks||[]).map(function(t){ return mTask(t, null); })
+        };
+      })
+    };
+  });
+  out.projects.forEach(function(p){ if(!p.milestones.length) p.milestones.push({id:'m-'+p.id+'-0',label:'Tasks',updatedAt:0,deleted:false,tasks:[]}); });
+
+  out.quickTasks = (data.quickTasks||[]).map(function(t){ return mTask(t, null); });
+
+  const n = data.notes||{};
+  Object.keys(n).forEach(function(k){
+    const v = n[k];
+    out.notes[String(k)] = (v && typeof v==='object') ? {text:v.text||'', updatedAt:v.updatedAt||0} : {text:String(v||''), updatedAt:0};
+  });
+  return out;
+}
+
+// ══ Merge (last-write-wins per item, not per file) ══════════
+function mergeById(l, r, childMerge){
+  const map = {}, order = [];
+  (l||[]).forEach(function(it){ if(!map[it.id]) order.push(it.id); map[it.id]=it; });
+  (r||[]).forEach(function(ri){
+    const li = map[ri.id];
+    if(!li){ order.push(ri.id); map[ri.id]=ri; return; }
+    const win = (ri.updatedAt||0) > (li.updatedAt||0) ? Object.assign({}, ri) : Object.assign({}, li);
+    if(childMerge) childMerge(win, li, ri);
+    map[ri.id] = win;
+  });
+  return order.map(function(id){ return map[id]; });
+}
+function mergeState(local, remote){
+  const res = {};
+  res.cfg = ((remote.cfg&&remote.cfg.updatedAt)||0) > ((local.cfg&&local.cfg.updatedAt)||0) ? remote.cfg : (local.cfg||remote.cfg);
+  res.projects = mergeById(local.projects, remote.projects, function(w, lp, rp){
+    w.milestones = mergeById(lp.milestones, rp.milestones, function(wm, lm, rm){
+      wm.tasks = mergeById(lm.tasks, rm.tasks);
+    });
+  });
+  res.quickTasks = mergeById(local.quickTasks, remote.quickTasks);
+  res.notes = {};
+  const keys = {};
+  Object.keys(local.notes||{}).forEach(function(k){ keys[k]=1; });
+  Object.keys(remote.notes||{}).forEach(function(k){ keys[k]=1; });
+  Object.keys(keys).forEach(function(k){
+    const a = (local.notes||{})[k], b = (remote.notes||{})[k];
+    if(!a){ res.notes[k]=b; return; }
+    if(!b){ res.notes[k]=a; return; }
+    res.notes[k] = (b.updatedAt||0) > (a.updatedAt||0) ? b : a;
+  });
+  return res;
+}
+function snapshot(){ return {cfg:cfg, projects:projects, quickTasks:quickTasks, notes:notes}; }
+function applyState(s){
+  if(s.cfg && s.cfg.cats && s.cfg.cats.length) cfg = s.cfg;
+  projects = s.projects||[];
+  quickTasks = s.quickTasks||[];
+  notes = s.notes||{};
+  reconcileFilters();
+}
+function reconcileFilters(){
+  const nc = {}, no = {};
+  cfg.cats.forEach(function(c){ nc[c.name] = activeCats[c.name] !== false; });
+  cfg.owners.forEach(function(o){ no[o] = activeOwners[o] !== false; });
+  activeCats = nc; activeOwners = no;
+}
+function purgeTombstones(s){
+  const cut = now() - TOMBSTONE_DAYS*86400000;
+  function keep(x){ return !(x.deleted && (x.updatedAt||0) < cut); }
+  s.projects = s.projects.filter(keep);
+  s.projects.forEach(function(p){
+    p.milestones = p.milestones.filter(keep);
+    p.milestones.forEach(function(m){ m.tasks = m.tasks.filter(keep); });
+  });
+  s.quickTasks = s.quickTasks.filter(keep);
+  return s;
+}
+
+// ══ Auth ════════════════════════════════════════════════════
+let accessToken = null, tokenClient = null, tokenExpiry = 0, authExpired = false;
+let pendingTokenResolve = null;
+
+function initTokenClient(){
+  if(tokenClient) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPE,
+    callback: function(resp){
+      const r = pendingTokenResolve; pendingTokenResolve = null;
+      if(resp && resp.access_token){
+        accessToken = resp.access_token;
+        tokenExpiry = now() + (parseInt(resp.expires_in||3600,10)*1000);
+        authExpired = false;
+        document.getElementById('reconnect-bar').classList.remove('show');
+        if(r) r(true);
+      } else {
+        if(r) r(false);
+      }
+    },
+    error_callback: function(){ const r = pendingTokenResolve; pendingTokenResolve = null; if(r) r(false); }
+  });
+}
+function requestToken(interactive){
+  return new Promise(function(resolve){
+    if(!window.google || !google.accounts){ resolve(false); return; }
+    initTokenClient();
+    pendingTokenResolve = resolve;
+    try { tokenClient.requestAccessToken({prompt: interactive ? 'consent' : ''}); }
+    catch(e){ pendingTokenResolve = null; resolve(false); }
+    setTimeout(function(){ if(pendingTokenResolve === resolve){ pendingTokenResolve = null; resolve(false); } }, 25000);
+  });
+}
+async function ensureToken(){
+  if(accessToken && now() < tokenExpiry - 120000) return true;
+  const ok = await requestToken(false);
+  if(!ok) setAuthExpired();
+  return ok;
+}
+function setAuthExpired(){
+  authExpired = true;
+  document.getElementById('reconnect-bar').classList.add('show');
+  setStatus('Not synced. Saved on this device.', 'err');
+}
+async function reconnect(){
+  const ok = await requestToken(true);
+  if(ok){
+    document.getElementById('reconnect-bar').classList.remove('show');
+    await pullAndMerge(true);
+    await pushNow();
+    setStatus('Reconnected and synced', 'ok');
+  } else {
+    setStatus('Could not reconnect. Try again.', 'err');
+  }
+}
+function gsiLoaded(){ return !!(window.google && google.accounts && google.accounts.oauth2); }
+function injectGsi(){
+  const old = document.getElementById('gsi-script');
+  if(old) old.remove();
+  const el = document.createElement('script');
+  el.id = 'gsi-script'; el.async = true;
+  el.src = 'https://accounts.google.com/gsi/client?_=' + Date.now();
+  document.head.appendChild(el);
+}
+function waitForGsi(ms){
+  return new Promise(function(resolve){
+    if(gsiLoaded()) return resolve(true);
+    const t0 = Date.now();
+    const iv = setInterval(function(){
+      if(gsiLoaded()){ clearInterval(iv); resolve(true); }
+      else if(Date.now()-t0 > ms){ clearInterval(iv); resolve(false); }
+    }, 120);
+  });
+}
+// Keep the button disabled until Google's library is actually present, so the
+// click handler can call requestAccessToken synchronously. Calling it from
+// inside a promise loses the user gesture and the pop-up gets blocked.
+function prepareSignIn(reinject){
+  const btn = document.getElementById('sign-in-btn');
+  const label = document.getElementById('sign-in-label');
+  btn.disabled = true;
+  label.textContent = 'Loading Google sign-in...';
+  if(reinject) injectGsi();
+  waitForGsi(20000).then(function(ok){
+    btn.disabled = false;
+    if(ok){
+      label.textContent = 'Sign in with Google';
+      document.getElementById('auth-error').style.display = 'none';
+      try { initTokenClient(); } catch(e){}
+    } else {
+      label.textContent = 'Try again';
+      showAuthError('Could not load Google sign-in from accounts.google.com. This usually means the page is open inside another app\u2019s built-in browser, or a content blocker is stopping the script. Open this link in Safari or Chrome directly, then tap Try again.');
+    }
+  });
+}
+function handleSignIn(){
+  if(!gsiLoaded()){ prepareSignIn(true); return; }
+  const btn = document.getElementById('sign-in-btn');
+  document.getElementById('auth-error').style.display = 'none';
+  btn.disabled = true;
+  document.getElementById('sign-in-label').textContent = 'Waiting for Google...';
+  requestToken(false).then(function(ok){
+    btn.disabled = false;
+    document.getElementById('sign-in-label').textContent = ok ? 'Sign in with Google' : 'Try again';
+    if(!ok){ showAuthError('Google did not hand back access. Allow pop-ups for this site, then tap Try again. If you are in a private window, use a normal one.'); return; }
+    startApp();
+  });
+}
+function showAuthError(m){
+  const el = document.getElementById('auth-error');
+  el.textContent = m; el.style.display = 'block';
+}
+
+// ══ Drive I/O ═══════════════════════════════════════════════
+let remoteModified = null, saveTimer = null, dirty = false, pushing = false, pulling = false;
+let statusTimer = null;
+
+function setStatus(msg, kind){
+  const el = document.getElementById('save-indicator');
+  el.textContent = msg;
+  el.classList.toggle('err', kind === 'err');
+  el.classList.add('show');
+  clearTimeout(statusTimer);
+  if(kind !== 'err') statusTimer = setTimeout(function(){ el.classList.remove('show'); }, 1600);
+}
+function saveBuffer(){
+  try { localStorage.setItem(BUFFER_KEY, JSON.stringify(purgeTombstones(snapshot()))); } catch(e){}
+}
+function readBuffer(){
+  try {
+    const raw = localStorage.getItem(BUFFER_KEY);
+    return raw ? migrate(JSON.parse(raw)) : null;
+  } catch(e){ return null; }
+}
+
+async function driveFetch(url, opts){
+  const ok = await ensureToken();
+  if(!ok) throw new Error('no-token');
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers, {Authorization:'Bearer '+accessToken});
+  let resp = await fetch(url, opts);
+  if(resp.status === 401){
+    const refreshed = await requestToken(false);
+    if(!refreshed){ setAuthExpired(); throw new Error('unauthorized'); }
+    opts.headers.Authorization = 'Bearer '+accessToken;
+    resp = await fetch(url, opts);
+  }
+  if(!resp.ok) throw new Error('drive-'+resp.status);
+  return resp;
+}
+async function getRemoteModified(){
+  const r = await driveFetch('https://www.googleapis.com/drive/v3/files/'+FILE_ID+'?fields=modifiedTime');
+  return (await r.json()).modifiedTime;
+}
+async function getRemoteContent(){
+  const r = await driveFetch('https://www.googleapis.com/drive/v3/files/'+FILE_ID+'?alt=media');
+  const text = await r.text();
+  if(!text.trim()) return {cfg:null, projects:[], quickTasks:[], notes:{}};
+  return migrate(JSON.parse(text)) || {cfg:null, projects:[], quickTasks:[], notes:{}};
+}
+
+// Pull remote, merge into local, re-render if anything changed
+async function pullAndMerge(force){
+  if(pulling || pushing || authExpired) return false;
+  pulling = true;
+  try {
+    if(!force){
+      const mt = await getRemoteModified();
+      if(remoteModified && mt === remoteModified){ pulling = false; return false; }
+      remoteModified = mt;
+    }
+    const remote = await getRemoteContent();
+    const before = JSON.stringify(snapshot());
+    const merged = mergeState(snapshot(), remote);
+    applyState(merged);
+    const changed = JSON.stringify(snapshot()) !== before;
+    if(changed){ saveBuffer(); buildSidebar(); populateSelects(); render(); }
+    pulling = false;
+    return changed;
+  } catch(e){
+    pulling = false;
+    if(String(e.message).indexOf('no-token')<0 && String(e.message).indexOf('unauthorized')<0) console.warn('pull failed', e);
+    return false;
+  }
+}
+
+// Merge-then-write so we never clobber the other person's edits
+async function pushNow(){
+  if(pushing) return;
+  if(authExpired){ setStatus('Not synced. Saved on this device.', 'err'); return; }
+  pushing = true;
+  setStatus('Saving...');
+  try {
+    let merged;
+    try {
+      const remote = await getRemoteContent();
+      merged = mergeState(snapshot(), remote);
+    } catch(e){ merged = snapshot(); }
+    applyState(merged);
+    const payload = JSON.stringify(purgeTombstones(Object.assign({schema:2}, snapshot())));
+    const r = await driveFetch(
+      'https://www.googleapis.com/upload/drive/v3/files/'+FILE_ID+'?uploadType=media&fields=modifiedTime',
+      {method:'PATCH', headers:{'Content-Type':'application/json'}, body:payload}
+    );
+    remoteModified = (await r.json()).modifiedTime;
+    dirty = false;
+    setStatus('Saved', 'ok');
+    buildSidebar(); populateSelects(); render();
+  } catch(e){
+    setStatus('Not saved to Drive. Kept on this device.', 'err');
+    console.warn('save failed', e);
+  }
+  pushing = false;
+  updateSyncText();
+}
+function save(){
+  dirty = true;
+  saveBuffer();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushNow, 900);
+}
+function forceSync(){ pullAndMerge(true).then(function(c){ setStatus(c ? 'Updated' : 'Already up to date', 'ok'); }); }
+function updateSyncText(){
+  const el = document.getElementById('sync-status-text');
+  if(!el) return;
+  el.textContent = authExpired
+    ? 'Disconnected. Reconnect from the banner at the top to sync again.'
+    : (dirty ? 'Saving changes...' : 'Synced with your shared Drive file. Checks for the other person\u2019s changes every few seconds.');
+}
+
+// ══ Boot ════════════════════════════════════════════════════
+async function startApp(){
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setStatus('Loading...');
+
+  const buffered = readBuffer();
+  if(buffered) applyState(mergeState({cfg:cfg,projects:[],quickTasks:[],notes:{}}, buffered));
+
+  try {
+    const remote = await getRemoteContent();
+    remoteModified = await getRemoteModified();
+    applyState(mergeState(snapshot(), remote));
+    saveBuffer();
+    setStatus('Loaded', 'ok');
+  } catch(e){
+    setStatus('Could not reach Drive. Working from this device.', 'err');
+  }
+
   document.getElementById('today-date-label').textContent = TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const WB = getWB();
-  document.getElementById('week-range-label').textContent = WB.ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+WB.we.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('week-range-label').textContent = WB.ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' to '+WB.we.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('week-quick-date').value = TODAY_STR;
-  buildSidebar(); populateSelects(); render();
+
+  document.title = cfg.title;
+  switchView(currentView); updateSyncText();
+
+  setInterval(function(){ if(!document.hidden) pullAndMerge(false); }, POLL_MS);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) pullAndMerge(false); });
+  window.addEventListener('online', function(){ pullAndMerge(true); if(dirty) pushNow(); });
+  setInterval(function(){ if(refreshToday()){ buildSidebar(); render(); } }, 60000);
+  window.addEventListener('beforeunload', saveBuffer);
 }
 
-// ── Sidebar ────────────────────────────────────────────────
+// ══ Sidebar / nav ═══════════════════════════════════════════
+function anyFilterOff(){
+  return cfg.cats.some(function(c){ return !activeCats[c.name]; }) || cfg.owners.some(function(o){ return !activeOwners[o]; });
+}
 function buildSidebar(){
   const acc = accentColor();
   let html =
-    '<div class="sidebar-logo">'+
-    '<div><div style="font-size:15px;font-weight:500;color:var(--text)">🏡 '+esc(cfg.title)+'</div>'+
-    '<div class="logo-sub" id="date-display">'+TODAY.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</div></div>'+
-    '<button class="settings-btn" onclick="openSettings()">⚙</button>'+
-    '</div>'+
+    '<div class="sidebar-logo"><div>'+
+      '<div class="logo-title">🏡 '+esc(cfg.title)+'</div>'+
+      '<div class="logo-sub">'+TODAY.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</div>'+
+    '</div><button class="settings-btn" onclick="openSettings()" aria-label="Settings">⚙</button></div>'+
     '<div class="nav-section"><div class="nav-label">Views</div>'+
-    navBtn('focus','Today','<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg>',acc)+
-    navBtn('week','This Week','<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M1 7h14M5 1v4M11 1v4"/></svg>',acc)+
-    navBtn('projects','Projects','<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>',acc,'nav-proj-count')+
+      navBtn('focus','Today','<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg>',acc)+
+      navBtn('week','This Week','<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M1 7h14M5 1v4M11 1v4"/></svg>',acc)+
+      navBtn('projects','Projects','<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>',acc,'nav-proj-count')+
     '</div>'+
     '<div class="nav-section"><div class="nav-label">Categories</div>'+
-    cfg.cats.map(function(c){
-      const on = activeCats[c.name];
-      return '<button class="nav-item'+(on?' active':' lane-inactive')+'" onclick="toggleCat(\''+esc(c.name)+'\')" style="'+(on?'background:'+lighten(c.color)+';color:'+c.color+';':'')+'">'+'<span class="nav-dot" style="background:'+c.color+'"></span>'+esc(c.name)+'<span class="nav-count" id="cnt-'+esc(c.name)+'">0</span></button>';
-    }).join('')+
+      cfg.cats.map(function(c,i){
+        const on = activeCats[c.name];
+        return '<button class="nav-item'+(on?' active':' lane-inactive')+'" onclick="toggleCatIdx('+i+')" style="'+(on?'background:'+lighten(c.color)+';color:'+c.color+';':'')+'">'+
+          '<span class="nav-dot" style="background:'+esc(c.color)+'"></span>'+esc(c.name)+
+          '<span class="nav-count" id="cnt-cat-'+i+'">0</span></button>';
+      }).join('')+
     '</div>'+
     '<div class="nav-section"><div class="nav-label">Owner</div>'+
-    cfg.owners.map(function(o,i){
-      const os = ownerStyle(o); const on = activeOwners[o];
-      return '<button class="nav-item'+(on?' active':' lane-inactive')+'" onclick="toggleOwner(\''+esc(o)+'\')" style="'+(on?'background:'+os.bg+';color:'+os.text+';':'')+'">'+'<span style="font-size:13px">'+(i<2?'👤':'👫')+'</span>'+esc(o)+'<span class="nav-count" id="cnt-own-'+esc(o)+'">0</span></button>';
-    }).join('')+
+      cfg.owners.map(function(o,i){
+        const os = ownerStyle(o), on = activeOwners[o];
+        return '<button class="nav-item'+(on?' active':' lane-inactive')+'" onclick="toggleOwnerIdx('+i+')" style="'+(on?'background:'+os.bg+';color:'+os.text+';':'')+'">'+
+          '<span style="font-size:13px">'+(i<2?'👤':'👫')+'</span>'+esc(o)+
+          '<span class="nav-count" id="cnt-own-'+i+'">0</span></button>';
+      }).join('')+
+      (anyFilterOff()?'<button class="filter-reset" onclick="resetFilters()">Show everything again</button>':'')+
     '</div>';
   document.getElementById('sidebar').innerHTML = html;
-  document.querySelectorAll('.btn-primary').forEach(function(b){ b.style.background = acc; });
+  document.querySelectorAll('.btn-primary,.fu-add').forEach(function(b){ b.style.background = acc; });
+  const mf = document.getElementById('mtop-filter');
+  if(mf) mf.classList.toggle('filtered', anyFilterOff());
 }
-function navBtn(view, label, icon, acc, cntId){
-  const on = currentView === view;
-  return '<button class="nav-item'+(on?' active':'')+'" onclick="switchView(\''+view+'\')" id="nav-'+view+'" style="'+(on?'background:'+lighten(acc)+';color:'+acc+';font-weight:500':'')+'">'
-    +icon+label+(cntId?'<span class="nav-count" id="'+cntId+'">0</span>':'')+
-    '</button>';
+function navBtn(view,label,icon,acc,cntId){
+  const on = currentView===view;
+  return '<button class="nav-item'+(on?' active':'')+'" onclick="switchView(\''+view+'\')" style="'+(on?'background:'+lighten(acc)+';color:'+acc+';font-weight:500':'')+'">'+icon+esc(label)+(cntId?'<span class="nav-count" id="'+cntId+'">0</span>':'')+'</button>';
 }
 function populateSelects(){
+  const catOpts = cfg.cats.map(function(c){ return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>'; }).join('');
+  const ownOpts = cfg.owners.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
   ['today-quick-cat','week-quick-cat','np-cat'].forEach(function(id){
     const el = document.getElementById(id); if(!el) return;
-    el.innerHTML = cfg.cats.map(function(c){ return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>'; }).join('');
+    const prev = el.value; el.innerHTML = catOpts; if(prev) el.value = prev;
   });
-  ['today-quick-owner','week-quick-owner','np-owner'].forEach(function(id){
+  ['today-quick-owner','week-quick-owner','np-owner','fu-owner'].forEach(function(id){
     const el = document.getElementById(id); if(!el) return;
-    el.innerHTML = cfg.owners.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
-    if(cfg.owners.length) el.value = cfg.owners[cfg.owners.length-1];
+    const prev = el.value; el.innerHTML = ownOpts;
+    el.value = (prev && cfg.owners.indexOf(prev)>=0) ? prev : defaultOwner();
   });
 }
-
-// ── Nav ────────────────────────────────────────────────────
 function switchView(v){
   currentView = v;
   ['focus','week','projects'].forEach(function(n){
     document.getElementById('view-'+n).style.display = n===v ? 'block' : 'none';
   });
+  const titles = {focus:'Today', week:'This Week', projects:'Projects'};
+  const mt = document.getElementById('mtop-title'); if(mt) mt.textContent = titles[v];
+  ['focus','week','projects'].forEach(function(n){
+    const b = document.getElementById('mtab-'+n);
+    if(b) b.style.color = n===v ? accentColor() : '';
+  });
+  closeDrawer();
+  window.scrollTo(0,0);
+  const main = document.querySelector('.main'); if(main) main.scrollTop = 0;
   buildSidebar(); populateSelects(); render();
 }
-function toggleCat(cat){ activeCats[cat]=!activeCats[cat]; buildSidebar(); render(); }
-function toggleOwner(owner){ activeOwners[owner]=!activeOwners[owner]; buildSidebar(); render(); }
-function visibleProjects(){ return projects.filter(function(p){ return activeCats[p.cat]&&activeOwners[p.owner]; }); }
+function toggleCatIdx(i){ const c = cfg.cats[i]; if(!c) return; activeCats[c.name] = !activeCats[c.name]; buildSidebar(); render(); }
+function toggleOwnerIdx(i){ const o = cfg.owners[i]; if(!o) return; activeOwners[o] = !activeOwners[o]; buildSidebar(); render(); }
+function resetFilters(){ cfg.cats.forEach(function(c){ activeCats[c.name]=true; }); cfg.owners.forEach(function(o){ activeOwners[o]=true; }); buildSidebar(); render(); }
+function openDrawer(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('drawer-scrim').classList.add('open'); }
+function closeDrawer(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('drawer-scrim').classList.remove('open'); }
 
-// ── Settings ───────────────────────────────────────────────
+// ══ Task pool ═══════════════════════════════════════════════
+function visibleProjects(){
+  return alive(projects).filter(function(p){ return activeCats[p.cat] !== false && activeOwners[p.owner] !== false; });
+}
+function taskCat(t, p){ return t.cat || (p ? p.cat : null) || (cfg.cats[0]&&cfg.cats[0].name); }
+function enrich(t, p, m){
+  return {
+    ref:t, id:t.id, text:t.text, done:t.done, due:t.due, recur:t.recur, followUpOf:t.followUpOf, completedAt:t.completedAt,
+    owner: t.owner || (p?p.owner:null) || defaultOwner(),
+    cat: taskCat(t,p),
+    projId: p?p.id:null, msId: m?m.id:null,
+    projName: p?p.name:'Quick task',
+    isQuick: !p
+  };
+}
+function getAllTasks(){
+  const out = [];
+  visibleProjects().forEach(function(p){
+    alive(p.milestones).forEach(function(m){
+      alive(m.tasks).forEach(function(t){ out.push(enrich(t,p,m)); });
+    });
+  });
+  alive(quickTasks).forEach(function(t){
+    const e = enrich(t,null,null);
+    if(activeCats[e.cat] !== false && activeOwners[e.owner] !== false) out.push(e);
+  });
+  return out;
+}
+function ownerBadge(o){ const s = ownerStyle(o); return '<span class="owner-badge" style="background:'+s.bg+';color:'+s.text+'">'+esc(o)+'</span>'; }
+
+function taskRowHtml(t, opts){
+  opts = opts || {};
+  const db = dueBadge(t.due), cs = catStyle(t.cat), rl = recurLabel(t.recur);
+  return '<div class="focus-task-row">'+
+    '<div class="task-main">'+
+      '<button class="task-check'+(t.done?' done':'')+'" onclick="toggleTask(\''+t.id+'\')" aria-label="'+(t.done?'Mark not done':'Mark done')+'"></button>'+
+      '<span class="focus-cat-dot" style="background:'+esc(cs.color)+'"></span>'+
+      '<span class="task-label'+(t.done?' done':'')+'">'+(t.followUpOf?'<span style="color:var(--text-3)">↳ </span>':'')+esc(t.text)+'</span>'+
+      '<button class="task-action-btn" onclick="openEditTask(\''+t.id+'\')" aria-label="Edit task">✎</button>'+
+    '</div>'+
+    '<div class="task-meta">'+
+      (rl?'<span class="recur-badge">'+rl+'</span>':'')+
+      ownerBadge(t.owner)+
+      (opts.hideProj?'':'<span class="focus-proj-ref">'+esc(t.projName)+'</span>')+
+      (db.label?'<span class="task-due-tag '+db.cls+'">'+db.label+'</span>':'')+
+    '</div>'+
+  '</div>';
+}
+
+// ══ Views ═══════════════════════════════════════════════════
+function renderSummary(){
+  const vp = visibleProjects();
+  const atRisk = vp.filter(function(p){ return p.status==='at-risk'; }).length;
+  const all = getAllTasks();
+  const done = all.filter(function(t){ return t.done; }).length;
+  const overdue = all.filter(function(t){ const n=daysUntil(t.due); return !t.done && n!==null && n<0; }).length;
+  const wk = all.filter(function(t){ const n=daysUntil(t.due); return !t.done && n!==null && n>=0 && n<=7; }).length;
+  document.getElementById('stat-projects').textContent = vp.length;
+  document.getElementById('stat-atrisk').textContent = atRisk+' need attention';
+  document.getElementById('stat-tasks').textContent = done;
+  document.getElementById('stat-tasks-sub').textContent = 'of '+all.length+' total';
+  const ov = document.getElementById('stat-overdue');
+  ov.textContent = overdue; ov.style.color = overdue>0 ? 'var(--danger)' : 'var(--text)';
+  document.getElementById('stat-week').textContent = wk;
+  const npc = document.getElementById('nav-proj-count'); if(npc) npc.textContent = vp.length;
+
+  const liveP = alive(projects);
+  cfg.cats.forEach(function(c,i){
+    const el = document.getElementById('cnt-cat-'+i);
+    if(el) el.textContent = liveP.filter(function(p){ return p.cat===c.name; }).length;
+  });
+  cfg.owners.forEach(function(o,i){
+    const el = document.getElementById('cnt-own-'+i);
+    if(el) el.textContent = liveP.filter(function(p){ return p.owner===o; }).length;
+  });
+
+  const urgentCount = all.filter(function(t){ const n=daysUntil(t.due); return !t.done && n!==null && n<=0; }).length;
+  const badge = document.getElementById('mtab-badge');
+  if(badge){ badge.textContent = urgentCount; badge.style.display = urgentCount ? 'block' : 'none'; }
+}
+
+function renderFocus(){
+  const all = getAllTasks();
+  const open = all.filter(function(t){ return !t.done; });
+  const byDue = function(a,b){ const x=daysUntil(a.due), y=daysUntil(b.due); return (x===null?1e9:x)-(y===null?1e9:y); };
+  const urgent = open.filter(function(t){ const n=daysUntil(t.due); return n!==null && n<=0; }).sort(byDue);
+  const week   = open.filter(function(t){ const n=daysUntil(t.due); return n!==null && n>0 && n<=7; }).sort(byDue);
+  const other  = open.filter(function(t){ const n=daysUntil(t.due); return n===null || n>7; }).sort(byDue);
+  const cut = now() - 7*86400000;
+  const done = all.filter(function(t){ return t.done && (!t.completedAt || t.completedAt > cut || t.completedAt === 1); })
+                  .sort(function(a,b){ return (b.completedAt||0)-(a.completedAt||0); }).slice(0,40);
+
+  function fill(list, elId, cntId, empty){
+    document.getElementById(cntId).textContent = list.length || '';
+    document.getElementById(elId).innerHTML = list.length
+      ? list.map(function(t){ return taskRowHtml(t); }).join('')
+      : '<div class="empty-state" style="padding:.8rem 0">'+empty+'</div>';
+  }
+  fill(urgent,'focus-urgent-list','cnt-urgent','Nothing overdue. Good place to be.');
+  fill(week,'focus-week-list','cnt-week-focus','Nothing due in the next seven days.');
+  fill(other,'focus-other-list','cnt-other','No open tasks without a near-term date.');
+  document.getElementById('cnt-done').textContent = done.length || '';
+  document.getElementById('focus-done-list').innerHTML = done.length
+    ? done.map(function(t){ return taskRowHtml(t); }).join('')
+    : '<div class="empty-state" style="padding:.8rem 0">Nothing finished in the last week.</div>';
+}
+function toggleDoneBlock(){
+  showDone = !showDone;
+  document.getElementById('focus-done-list').style.display = showDone ? 'block' : 'none';
+  document.getElementById('done-toggle').textContent = showDone ? 'Hide' : 'Show';
+}
+
+function renderWeek(){
+  const wb = getWB();
+  const days = []; for(let i=0;i<7;i++){ const d = new Date(wb.ws); d.setDate(wb.ws.getDate()+i); days.push(ymd(d)); }
+  const open = getAllTasks().filter(function(t){ return !t.done; });
+  const bucket = {}; days.forEach(function(d){ bucket[d]=[]; });
+  const undated = [];
+  open.forEach(function(t){
+    if(!t.due){ undated.push(t); return; }
+    const n = daysUntil(t.due);
+    if(n<0){ if(bucket[TODAY_STR]) bucket[TODAY_STR].push(t); return; }
+    if(t.due>=wb.wsStr && t.due<=wb.weStr) bucket[t.due].push(t);
+  });
+  let html = '';
+  days.forEach(function(ds){
+    const items = bucket[ds]; if(!items || !items.length) return;
+    const isToday = ds===TODAY_STR, isPast = daysUntil(ds)<0;
+    const d = parseDate(ds);
+    const label = (isToday?'Today, ':'')+d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+    html += '<div class="week-day-group"><div class="week-day-label'+(isToday?' is-today':isPast?' is-past':'')+'">'+label+'</div>'+
+      items.map(function(t){ return taskRowHtml(t); }).join('')+'</div>';
+  });
+  if(undated.length) html += '<div class="week-day-group"><div class="week-day-label">No due date</div>'+undated.map(function(t){ return taskRowHtml(t); }).join('')+'</div>';
+  if(!html) html = '<div class="empty-state">Nothing on the calendar this week. Enjoy it.</div>';
+  document.getElementById('week-content').innerHTML = html;
+}
+
+function calcPct(p){
+  let tot=0, done=0;
+  alive(p.milestones).forEach(function(m){ alive(m.tasks).forEach(function(t){ tot++; if(t.done) done++; }); });
+  return tot ? Math.round(done/tot*100) : 0;
+}
+function renderProjects(){
+  const vp = visibleProjects();
+  const el = document.getElementById('projects-list');
+  if(!vp.length){ el.innerHTML = '<div class="empty-state">No projects yet. Add one to get started.</div>'; return; }
+  el.innerHTML = vp.map(function(p){
+    const cs = catStyle(p.cat), os = ownerStyle(p.owner);
+    const pct = calcPct(p), isOpen = !!openProjects[p.id];
+    const db = dueBadge(p.due), pn = (notes[p.id]&&notes[p.id].text)||'';
+    let body = '';
+    if(isOpen){
+      const ownOpts = cfg.owners.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
+      const ms = alive(p.milestones).map(function(m){
+        const rows = alive(m.tasks).map(function(t){
+          return taskRowHtml(enrich(t,p,m), {hideProj:true});
+        }).join('') || '<div class="empty-state" style="padding:.6rem 0">Nothing here yet.</div>';
+        return '<div class="milestone-block">'+
+          '<div class="milestone-name">'+esc(m.label)+
+            (alive(p.milestones).length>1?'<button class="ms-del" onclick="deleteMilestone(\''+p.id+'\',\''+m.id+'\')" aria-label="Delete group">✕</button>':'')+
+          '</div>'+ rows +
+          '<div class="add-task-row">'+
+            '<input class="add-task-input" id="ti-'+m.id+'" placeholder="Add a task..." onkeydown="if(event.key===\'Enter\')addTask(\''+p.id+'\',\''+m.id+'\')" />'+
+            '<input type="date" class="add-task-date" id="td-'+m.id+'" aria-label="Due date" />'+
+            '<select class="add-task-owner" id="to-'+m.id+'" aria-label="Owner">'+ownOpts+'</select>'+
+            '<select class="add-task-recur" id="tr-'+m.id+'" aria-label="Repeat"><option value="none">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>'+
+            '<button class="add-task-btn" onclick="addTask(\''+p.id+'\',\''+m.id+'\')">Add task</button>'+
+          '</div></div>';
+      }).join('');
+      body = '<div class="tasks-panel">'+ms+
+        '<div style="padding:11px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'+
+          '<button class="btn" style="font-size:12px" onclick="openAddMilestone(\''+p.id+'\')">+ Add group</button>'+
+          '<button class="btn" style="font-size:12px" onclick="openEditProject(\''+p.id+'\')">Edit project</button>'+
+        '</div></div>'+
+        '<div class="notes-bar"><span class="notes-icon">✎</span>'+
+        '<textarea class="notes-input" rows="2" placeholder="Notes, ideas, links..." onchange="saveNotes(\''+p.id+'\',this.value)">'+esc(pn)+'</textarea></div>';
+    }
+    return '<div class="project-card">'+
+      '<div class="project-header" onclick="toggleProject(\''+p.id+'\')">'+
+        '<span class="proj-dot" style="background:'+esc(cs.color)+'"></span>'+
+        '<div class="proj-meta">'+
+          '<div class="proj-top"><span class="proj-name">'+esc(p.name)+'</span>'+
+            '<span class="badge" style="background:'+cs.bg+';color:'+cs.text+'">'+esc(p.cat)+'</span>'+
+            '<span class="badge" style="background:'+os.bg+';color:'+os.text+'">'+esc(p.owner)+'</span>'+
+            '<button class="status-toggle" style="'+(STATUS_STYLE[p.status]||STATUS_STYLE.active)+'" onclick="cycleStatus(\''+p.id+'\',event)">'+esc(STATUS_LABEL[p.status]||p.status)+' ▾</button>'+
+          '</div>'+
+          '<div class="proj-progress"><div class="bar-wrap"><div class="bar-fill" style="width:'+pct+'%;background:'+esc(cs.color)+'"></div></div><span class="bar-pct">'+pct+'%</span></div>'+
+          (db.label?'<div class="proj-due">'+db.label+'</div>':'')+
+        '</div><span class="proj-chevron'+(isOpen?' open':'')+'">⌄</span>'+
+      '</div>'+body+'</div>';
+  }).join('');
+}
+function render(){
+  renderSummary();
+  if(currentView==='focus') renderFocus();
+  if(currentView==='week') renderWeek();
+  if(currentView==='projects') renderProjects();
+}
+
+// ══ Task actions ════════════════════════════════════════════
+function rawTask(id){
+  let found = null;
+  quickTasks.forEach(function(t){ if(t.id===id) found = {t:t, p:null, m:null}; });
+  if(found) return found;
+  projects.forEach(function(p){ p.milestones.forEach(function(m){ m.tasks.forEach(function(t){ if(t.id===id) found = {t:t, p:p, m:m}; }); }); });
+  return found;
+}
+function makeTask(fields){
+  return Object.assign({
+    id:newId(), text:'', done:false, due:null, owner:defaultOwner(), recur:'none',
+    cat:null, completedAt:0, followUpOf:null, updatedAt:now(), deleted:false
+  }, fields||{});
+}
+function toggleTask(id){
+  const f = rawTask(id); if(!f) return;
+  const t = f.t;
+  if(t.recur && t.recur !== 'none'){
+    t.due = nextRecurringDue(t.due || TODAY_STR, t.recur);
+    t.done = false;
+    touch(t); save(); render();
+    setStatus('Rescheduled for '+parseDate(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric'}), 'ok');
+    return;
+  }
+  t.done = !t.done;
+  t.completedAt = t.done ? now() : 0;
+  touch(t); save(); render();
+  if(t.done) offerFollowUp(enrich(t, f.p, f.m));
+}
+function addTask(projId, msId){
+  const p = projects.find(function(x){ return x.id===projId; }); if(!p) return;
+  const m = p.milestones.find(function(x){ return x.id===msId; }); if(!m) return;
+  const ti = document.getElementById('ti-'+msId); if(!ti) return;
+  const val = ti.value.trim(); if(!val) return;
+  const td = document.getElementById('td-'+msId), to = document.getElementById('to-'+msId), tr = document.getElementById('tr-'+msId);
+  m.tasks.push(makeTask({text:val, due:(td&&td.value)||null, owner:(to&&to.value)||defaultOwner(), recur:(tr&&tr.value)||'none'}));
+  touch(m);
+  ti.value = '';
+  openProjects[projId] = true;
+  save(); render();
+  const again = document.getElementById('ti-'+msId); if(again) again.focus();
+}
+function quickAdd(prefix, dueVal){
+  const input = document.getElementById(prefix+'-quick-input');
+  const text = input.value.trim(); if(!text) return;
+  quickTasks.push(makeTask({
+    text: text,
+    cat: document.getElementById(prefix+'-quick-cat').value,
+    owner: document.getElementById(prefix+'-quick-owner').value,
+    due: dueVal,
+    recur: document.getElementById(prefix+'-quick-recur').value || 'none'
+  }));
+  input.value = ''; save(); render(); input.focus();
+}
+function quickAddToday(){ quickAdd('today', TODAY_STR); }
+function quickAddWeek(){ quickAdd('week', document.getElementById('week-quick-date').value || TODAY_STR); }
+
+// ══ Edit / move task ════════════════════════════════════════
+function moveOptions(selected){
+  let html = '<option value="q">Quick tasks (no project)</option>';
+  alive(projects).forEach(function(p){
+    alive(p.milestones).forEach(function(m){
+      const v = 'p:'+p.id+':'+m.id;
+      html += '<option value="'+esc(v)+'"'+(v===selected?' selected':'')+'>'+esc(p.name)+' → '+esc(m.label)+'</option>';
+    });
+  });
+  return html;
+}
+function openEditTask(id){
+  const f = rawTask(id); if(!f) return;
+  const t = f.t;
+  document.getElementById('et-task-id').value = id;
+  document.getElementById('et-text').value = t.text || '';
+  document.getElementById('et-due').value = t.due || '';
+  document.getElementById('et-recur').value = t.recur || 'none';
+
+  const ownerSel = document.getElementById('et-owner');
+  ownerSel.innerHTML = cfg.owners.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
+  ownerSel.value = t.owner || (f.p?f.p.owner:null) || defaultOwner();
+
+  const catSel = document.getElementById('et-cat');
+  catSel.innerHTML = cfg.cats.map(function(c){ return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>'; }).join('');
+  catSel.value = taskCat(t, f.p);
+
+  const cur = f.p ? ('p:'+f.p.id+':'+f.m.id) : 'q';
+  const mv = document.getElementById('et-move');
+  mv.innerHTML = moveOptions(cur);
+  mv.value = cur;
+
+  document.getElementById('modal-edit-task').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('et-text').focus(); }, 60);
+}
+function submitEditTask(){
+  const id = document.getElementById('et-task-id').value;
+  const f = rawTask(id); if(!f) return;
+  const text = document.getElementById('et-text').value.trim(); if(!text) return;
+  const dest = document.getElementById('et-move').value;
+  const cur  = f.p ? ('p:'+f.p.id+':'+f.m.id) : 'q';
+  const newCat = document.getElementById('et-cat').value;
+
+  const fields = {
+    text: text,
+    due: document.getElementById('et-due').value || null,
+    owner: document.getElementById('et-owner').value,
+    recur: document.getElementById('et-recur').value
+  };
+
+  if(dest === cur){
+    Object.assign(f.t, fields);
+    const inheritCat = f.p ? f.p.cat : null;
+    f.t.cat = (newCat === inheritCat) ? null : newCat;
+    touch(f.t);
+  } else {
+    const moved = makeTask(Object.assign({}, fields, {
+      done: f.t.done, completedAt: f.t.completedAt, followUpOf: f.t.followUpOf
+    }));
+    let targetCat = null;
+    if(dest === 'q'){
+      moved.cat = newCat;
+      quickTasks.push(moved);
+    } else {
+      const parts = dest.split(':');
+      const p = projects.find(function(x){ return x.id===parts[1]; });
+      const m = p && p.milestones.find(function(x){ return x.id===parts[2]; });
+      if(!p || !m){ setStatus('That destination no longer exists.', 'err'); return; }
+      moved.cat = (newCat === p.cat) ? null : newCat;
+      m.tasks.push(moved); touch(m);
+    }
+    f.t.deleted = true; touch(f.t);
+    if(dest !== 'q') openProjects[dest.split(':')[1]] = true;
+  }
+  closeModal('modal-edit-task'); save(); render();
+}
+function deleteTaskFromModal(){
+  const id = document.getElementById('et-task-id').value;
+  const f = rawTask(id); if(!f) return;
+  if(!confirm('Delete "'+f.t.text+'"? This removes it for both of you.')) return;
+  f.t.deleted = true; touch(f.t);
+  closeModal('modal-edit-task'); save(); render();
+}
+
+// ══ Follow-up ═══════════════════════════════════════════════
+let pendingFollowUp = null, fuTimer = null;
+function offerFollowUp(t){
+  pendingFollowUp = t;
+  const el = document.getElementById('followup');
+  document.getElementById('fu-done-label').textContent = 'Finished: '+t.text;
+  document.getElementById('fu-text').value = '';
+  const ow = document.getElementById('fu-owner');
+  ow.innerHTML = cfg.owners.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
+  ow.value = t.owner;
+  document.getElementById('fu-due').value = addDays(TODAY_STR, 7);
+  document.getElementById('fu-add').style.background = accentColor();
+  el.classList.add('show');
+  clearTimeout(fuTimer);
+  fuTimer = setTimeout(dismissFollowUp, 15000);
+  if(window.matchMedia('(min-width:861px)').matches) setTimeout(function(){ document.getElementById('fu-text').focus(); }, 80);
+}
+function dismissFollowUp(){
+  clearTimeout(fuTimer);
+  document.getElementById('followup').classList.remove('show');
+  pendingFollowUp = null;
+}
+function submitFollowUp(){
+  if(!pendingFollowUp) return;
+  const text = document.getElementById('fu-text').value.trim();
+  if(!text){ document.getElementById('fu-text').focus(); return; }
+  const src = pendingFollowUp;
+  const t = makeTask({
+    text: text,
+    owner: document.getElementById('fu-owner').value,
+    due: document.getElementById('fu-due').value || null,
+    followUpOf: src.id
+  });
+  if(src.isQuick){
+    t.cat = src.cat;
+    quickTasks.push(t);
+  } else {
+    const p = projects.find(function(x){ return x.id===src.projId; });
+    const m = p && p.milestones.find(function(x){ return x.id===src.msId; });
+    if(m){ t.cat = (src.cat === p.cat) ? null : src.cat; m.tasks.push(t); touch(m); }
+    else { t.cat = src.cat; quickTasks.push(t); }
+  }
+  dismissFollowUp();
+  save(); render();
+  setStatus('Follow-up added', 'ok');
+}
+
+// ══ Projects ════════════════════════════════════════════════
+function toggleProject(id){ openProjects[id] = !openProjects[id]; render(); }
+function cycleStatus(projId, e){
+  e.stopPropagation();
+  document.querySelectorAll('.status-dropdown').forEach(function(el){ el.remove(); });
+  const p = projects.find(function(x){ return x.id===projId; }); if(!p) return;
+  const btn = e.currentTarget;
+  const dd = document.createElement('div'); dd.className = 'status-dropdown';
+  ['active','at-risk','on-hold','complete'].forEach(function(s){
+    const b = document.createElement('button');
+    b.textContent = STATUS_LABEL[s];
+    if(s === p.status) b.style.fontWeight = '500';
+    b.onclick = function(ev){ ev.stopPropagation(); p.status = s; touch(p); save(); render(); };
+    dd.appendChild(b);
+  });
+  btn.appendChild(dd);
+}
+function openAddProject(){
+  populateSelects();
+  document.getElementById('np-id').value = '';
+  document.getElementById('np-title').textContent = 'New project';
+  document.getElementById('np-submit').textContent = 'Add project';
+  document.getElementById('np-delete').style.display = 'none';
+  ['np-name','np-due','np-notes-init'].forEach(function(i){ document.getElementById(i).value = ''; });
+  document.getElementById('np-status').value = 'active';
+  document.getElementById('np-notes-init').parentElement.style.display = '';
+  document.getElementById('modal-project').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('np-name').focus(); }, 60);
+}
+function openEditProject(id){
+  const p = projects.find(function(x){ return x.id===id; }); if(!p) return;
+  populateSelects();
+  document.getElementById('np-id').value = id;
+  document.getElementById('np-title').textContent = 'Edit project';
+  document.getElementById('np-submit').textContent = 'Save changes';
+  document.getElementById('np-delete').style.display = '';
+  document.getElementById('np-name').value = p.name;
+  document.getElementById('np-cat').value = p.cat;
+  document.getElementById('np-owner').value = p.owner;
+  document.getElementById('np-status').value = p.status;
+  document.getElementById('np-due').value = p.due || '';
+  document.getElementById('np-notes-init').parentElement.style.display = 'none';
+  document.getElementById('modal-project').classList.remove('hidden');
+}
+function submitProject(){
+  const name = document.getElementById('np-name').value.trim(); if(!name) return;
+  const id = document.getElementById('np-id').value;
+  const vals = {
+    name: name,
+    cat: document.getElementById('np-cat').value,
+    owner: document.getElementById('np-owner').value,
+    status: document.getElementById('np-status').value,
+    due: document.getElementById('np-due').value || null
+  };
+  if(id){
+    const p = projects.find(function(x){ return x.id===id; }); if(!p) return;
+    Object.assign(p, vals); touch(p);
+  } else {
+    const pid = newId();
+    projects.push(Object.assign({id:pid, milestones:[{id:newId(), label:'Tasks', updatedAt:now(), deleted:false, tasks:[]}], updatedAt:now(), deleted:false}, vals));
+    const n = document.getElementById('np-notes-init').value.trim();
+    if(n) notes[pid] = {text:n, updatedAt:now()};
+    openProjects[pid] = true;
+    currentView = 'projects';
+  }
+  closeModal('modal-project'); save(); switchView('projects');
+}
+function deleteProjectFromModal(){
+  const id = document.getElementById('np-id').value;
+  const p = projects.find(function(x){ return x.id===id; }); if(!p) return;
+  const count = alive(p.milestones).reduce(function(a,m){ return a + alive(m.tasks).length; }, 0);
+  if(!confirm('Delete "'+p.name+'" and its '+count+' task'+(count===1?'':'s')+'? This removes it for both of you.')) return;
+  p.deleted = true; touch(p);
+  closeModal('modal-project'); save(); render();
+}
+function openAddMilestone(id){
+  document.getElementById('ms-proj-id').value = id;
+  document.getElementById('ms-name').value = '';
+  document.getElementById('modal-milestone').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('ms-name').focus(); }, 60);
+}
+function submitMilestone(){
+  const name = document.getElementById('ms-name').value.trim(); if(!name) return;
+  const p = projects.find(function(x){ return x.id===document.getElementById('ms-proj-id').value; }); if(!p) return;
+  p.milestones.push({id:newId(), label:name, updatedAt:now(), deleted:false, tasks:[]});
+  touch(p);
+  closeModal('modal-milestone'); save(); render();
+}
+function deleteMilestone(projId, msId){
+  const p = projects.find(function(x){ return x.id===projId; }); if(!p) return;
+  const m = p.milestones.find(function(x){ return x.id===msId; }); if(!m) return;
+  const n = alive(m.tasks).length;
+  if(n && !confirm('Delete "'+m.label+'" and its '+n+' task'+(n===1?'':'s')+'?')) return;
+  m.deleted = true; touch(m);
+  save(); render();
+}
+function saveNotes(projId, val){
+  notes[projId] = {text:val, updatedAt:now()};
+  save();
+}
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+
+// ══ Settings ════════════════════════════════════════════════
 function openSettings(){
-  cfg.owners.forEach(function(o,i){ const el=document.getElementById('owner-name-'+i); if(el) el.value=o; });
+  cfg.owners.forEach(function(o,i){ const el = document.getElementById('owner-name-'+i); if(el) el.value = o; });
   document.getElementById('tracker-title-input').value = cfg.title;
   renderCatSettings();
+  updateSyncText();
   document.getElementById('settings-panel').classList.add('open');
   document.getElementById('settings-overlay').classList.add('open');
+  closeDrawer();
 }
 function closeSettings(){
   document.getElementById('settings-panel').classList.remove('open');
@@ -607,350 +1606,107 @@ function closeSettings(){
 }
 function renderCatSettings(){
   document.getElementById('cat-settings-list').innerHTML = cfg.cats.map(function(c,i){
-    return '<div class="settings-row">'+
-      '<input type="text" value="'+esc(c.name)+'" id="cat-name-'+i+'" style="flex:1;font-size:13px;padding:6px 10px;border:1px solid var(--border-md);border-radius:6px;background:var(--bg);color:var(--text);font-family:DM Sans,sans-serif" />'+
-      '<input type="color" value="'+c.color+'" id="cat-color-'+i+'" style="width:32px;height:32px;border:1px solid var(--border-md);border-radius:6px;cursor:pointer;padding:2px" />'+
-      (cfg.cats.length>1?'<button class="del-btn" onclick="deleteCat('+i+')">✕</button>':'')+
-      '</div>';
+    return '<div class="settings-row" data-cat-id="'+esc(c.id)+'">'+
+      '<input type="text" class="owner-name-input" value="'+esc(c.name)+'" id="cat-name-'+i+'" />'+
+      '<input type="color" class="color-swatch" value="'+esc(c.color)+'" id="cat-color-'+i+'" aria-label="Color for '+esc(c.name)+'" />'+
+      (cfg.cats.length>1?'<button class="del-btn" onclick="deleteCat('+i+')" aria-label="Delete category">✕</button>':'')+
+    '</div>';
   }).join('');
 }
-function deleteCat(i){ cfg.cats.splice(i,1); renderCatSettings(); }
+function countInCat(name){
+  let n = alive(projects).filter(function(p){ return p.cat===name; }).length;
+  n += alive(quickTasks).filter(function(t){ return t.cat===name; }).length;
+  return n;
+}
+function remapCat(from, to){
+  projects.forEach(function(p){ if(p.cat===from){ p.cat = to; touch(p); }
+    p.milestones.forEach(function(m){ m.tasks.forEach(function(t){ if(t.cat===from){ t.cat = to; touch(t); } }); });
+  });
+  quickTasks.forEach(function(t){ if(t.cat===from){ t.cat = to; touch(t); } });
+}
+function deleteCat(i){
+  const c = cfg.cats[i]; if(!c || cfg.cats.length<2) return;
+  const target = cfg.cats[i===0?1:0];
+  const n = countInCat(c.name);
+  if(n && !confirm('Move the '+n+' item'+(n===1?'':'s')+' in "'+c.name+'" to "'+target.name+'" and delete the category?')) return;
+  if(n) remapCat(c.name, target.name);
+  cfg.cats.splice(i,1);
+  touch(cfg); reconcileFilters(); renderCatSettings();
+  save(); buildSidebar(); populateSelects(); render();
+}
 function addCategory(){
   const name = document.getElementById('new-cat-name').value.trim(); if(!name) return;
-  cfg.cats.push({name:name, color:document.getElementById('new-cat-color').value});
+  if(cfg.cats.some(function(c){ return c.name.toLowerCase()===name.toLowerCase(); })){
+    setStatus('That category already exists.', 'err'); return;
+  }
+  cfg.cats.push({id:newId(), name:name, color:document.getElementById('new-cat-color').value});
   activeCats[name] = true;
   document.getElementById('new-cat-name').value = '';
-  renderCatSettings();
+  touch(cfg); renderCatSettings();
+  save(); buildSidebar(); populateSelects(); render();
 }
 function saveSettings(){
+  const oldOwners = cfg.owners.slice();
   const newOwners = [];
-  for(var i=0;i<3;i++){ const el=document.getElementById('owner-name-'+i); if(el&&el.value.trim()) newOwners.push(el.value.trim()); }
-  if(newOwners.length>=2) cfg.owners = newOwners;
-  const newCats = [];
+  for(let i=0;i<3;i++){ const el = document.getElementById('owner-name-'+i); if(el && el.value.trim()) newOwners.push(el.value.trim()); }
+  if(newOwners.length >= 2){
+    oldOwners.forEach(function(o,i){
+      const nn = newOwners[i];
+      if(nn && nn !== o){
+        projects.forEach(function(p){
+          if(p.owner===o){ p.owner = nn; touch(p); }
+          p.milestones.forEach(function(m){ m.tasks.forEach(function(t){ if(t.owner===o){ t.owner = nn; touch(t); } }); });
+        });
+        quickTasks.forEach(function(t){ if(t.owner===o){ t.owner = nn; touch(t); } });
+      }
+    });
+    cfg.owners = newOwners;
+  }
   cfg.cats.forEach(function(c,i){
-    const ne=document.getElementById('cat-name-'+i); const ce=document.getElementById('cat-color-'+i);
-    if(ne&&ne.value.trim()) newCats.push({name:ne.value.trim(), color:ce?ce.value:c.color});
+    const ne = document.getElementById('cat-name-'+i), ce = document.getElementById('cat-color-'+i);
+    if(ce) c.color = ce.value;
+    if(ne && ne.value.trim() && ne.value.trim() !== c.name){
+      remapCat(c.name, ne.value.trim());
+      c.name = ne.value.trim();
+    }
   });
-  if(newCats.length) cfg.cats = newCats;
-  const te = document.getElementById('tracker-title-input'); if(te&&te.value.trim()) cfg.title = te.value.trim();
-  activeCats = {}; cfg.cats.forEach(function(c){ activeCats[c.name]=true; });
-  activeOwners = {}; cfg.owners.forEach(function(o){ activeOwners[o]=true; });
+  const te = document.getElementById('tracker-title-input');
+  if(te && te.value.trim()) cfg.title = te.value.trim();
+  touch(cfg); reconcileFilters();
   save(); closeSettings(); buildSidebar(); populateSelects(); render();
+  document.title = cfg.title;
+  setStatus('Settings saved', 'ok');
 }
 
-// ── Quick add ──────────────────────────────────────────────
-function quickAddToday(){
-  const input = document.getElementById('today-quick-input');
-  const text = input.value.trim(); if(!text) return;
-  quickTasks.push({id:uid(),text:text,cat:document.getElementById('today-quick-cat').value,owner:document.getElementById('today-quick-owner').value,due:TODAY_STR,done:false,recur:document.getElementById('today-quick-recur').value||'none'});
-  input.value=''; save(); render();
-}
-function quickAddWeek(){
-  const input = document.getElementById('week-quick-input');
-  const text = input.value.trim(); if(!text) return;
-  quickTasks.push({id:uid(),text:text,cat:document.getElementById('week-quick-cat').value,owner:document.getElementById('week-quick-owner').value,due:document.getElementById('week-quick-date').value||TODAY_STR,done:false,recur:document.getElementById('week-quick-recur').value||'none'});
-  input.value=''; save(); render();
-}
-function toggleQuickTask(id){
-  const t = quickTasks.find(function(t){ return t.id===id; }); if(!t) return;
-  if(t.recur&&t.recur!=='none'){ t.due=nextRecurringDue(t.due||TODAY_STR,t.recur); t.done=false; }
-  else { t.done=!t.done; }
-  save(); render();
-}
-
-// ── Task pool ──────────────────────────────────────────────
-function getAllTasks(){
-  const vp = visibleProjects();
-  const pt = [];
-  vp.forEach(function(p){ p.milestones.forEach(function(m){ m.tasks.forEach(function(t){ pt.push(Object.assign({},t,{cat:p.cat,owner:t.owner||p.owner,projName:p.name,projId:p.id,isQuick:false})); }); }); });
-  const qt = quickTasks.filter(function(t){ return activeCats[t.cat]&&activeOwners[t.owner]; }).map(function(t){ return Object.assign({},t,{projName:'Quick task',projId:null,isQuick:true}); });
-  return pt.concat(qt);
-}
-function ownerBadge(owner){ const os=ownerStyle(owner); return '<span class="owner-badge" style="background:'+os.bg+';color:'+os.text+'">'+esc(owner)+'</span>'; }
-function taskRowHtml(t){
-  const db=dueBadge(t.due); const cs=catStyle(t.cat);
-  const onT=t.isQuick?'toggleQuickTask('+t.id+')':'toggleTask('+t.projId+','+t.id+')';
-  const rl=recurLabel(t.recur);
-  // store in registry so edit modal can find it by id
-  _taskRegistry[String(t.id)] = t;
-  return '<div class="focus-task-row">'+
-    '<div class="task-check'+(t.done?' done':'')+'" onclick="'+onT+'"></div>'+
-    '<div class="focus-cat-dot" style="background:'+cs.color+'"></div>'+
-    '<span class="task-label'+(t.done?' done':'')+'" style="flex:1">'+esc(t.text)+'</span>'+
-    (rl?'<span class="recur-badge">'+rl+'</span>':'')+
-    ownerBadge(t.owner||cfg.owners[cfg.owners.length-1])+
-    '<span class="focus-proj-ref">'+esc(t.projName)+'</span>'+
-    (db.label?'<span class="task-due-tag '+db.cls+'">'+db.label+'</span>':'')+
-    '<button class="task-action-btn" onclick="openEditTaskById('+t.id+')" title="Edit">✎</button>'+
-    '</div>';
-}
-
-// ── Summary ────────────────────────────────────────────────
-function renderSummary(){
-  const vp=visibleProjects();
-  const atRisk=vp.filter(function(p){return p.status==='at-risk';}).length;
-  const all=getAllTasks();
-  const done=all.filter(function(t){return t.done;}).length;
-  const overdue=all.filter(function(t){return !t.done&&daysUntil(t.due)!==null&&daysUntil(t.due)<0;}).length;
-  const thisWeek=all.filter(function(t){const n=daysUntil(t.due);return !t.done&&n!==null&&n>=0&&n<=7;}).length;
-  document.getElementById('stat-projects').textContent=vp.length;
-  document.getElementById('stat-atrisk').textContent=atRisk+' need attention';
-  document.getElementById('stat-tasks').textContent=done;
-  document.getElementById('stat-tasks-sub').textContent='of '+all.length+' total';
-  const ov=document.getElementById('stat-overdue'); ov.textContent=overdue; ov.style.color=overdue>0?'#c0392b':'var(--text)';
-  document.getElementById('stat-week').textContent=thisWeek;
-  const npc=document.getElementById('nav-proj-count'); if(npc) npc.textContent=vp.length;
-  cfg.cats.forEach(function(c){const el=document.getElementById('cnt-'+c.name);if(el)el.textContent=projects.filter(function(p){return p.cat===c.name;}).length;});
-  cfg.owners.forEach(function(o){const el=document.getElementById('cnt-own-'+o);if(el)el.textContent=projects.filter(function(p){return p.owner===o;}).length;});
-}
-
-// ── Today ──────────────────────────────────────────────────
-function renderFocus(){
-  const all=getAllTasks().filter(function(t){return !t.done;});
-  const urgent=all.filter(function(t){const n=daysUntil(t.due);return n!==null&&n<=0;}).sort(function(a,b){return daysUntil(a.due)-daysUntil(b.due);});
-  const week=all.filter(function(t){const n=daysUntil(t.due);return n!==null&&n>0&&n<=7;}).sort(function(a,b){return daysUntil(a.due)-daysUntil(b.due);});
-  const other=all.filter(function(t){const n=daysUntil(t.due);return n===null||n>7;});
-  function sl(ts,eId,cId){ document.getElementById(cId).textContent=ts.length||''; document.getElementById(eId).innerHTML=ts.length?ts.map(taskRowHtml).join(''):'<div class="empty-state" style="padding:.8rem 0">Nothing here.</div>'; }
-  sl(urgent,'focus-urgent-list','cnt-urgent');
-  sl(week,'focus-week-list','cnt-week-focus');
-  sl(other,'focus-other-list','cnt-other');
-}
-
-// ── This Week ──────────────────────────────────────────────
-function renderWeek(){
-  const wb=getWB();
-  const days=[]; for(var i=0;i<7;i++){const d=new Date(wb.ws);d.setDate(wb.ws.getDate()+i);days.push(d.toISOString().slice(0,10));}
-  const all=getAllTasks().filter(function(t){return !t.done;});
-  const tbd={}; days.forEach(function(d){tbd[d]=[];}); const undated=[];
-  all.forEach(function(t){
-    const n=daysUntil(t.due);
-    if(!t.due){undated.push(t);return;}
-    if(n<0&&tbd[TODAY_STR]){tbd[TODAY_STR].push(t);return;}
-    if(t.due>=wb.wsStr&&t.due<=wb.weStr) tbd[t.due].push(t);
-  });
-  let html='';
-  days.forEach(function(ds){
-    const items=tbd[ds]||[]; if(!items.length) return;
-    const isToday=ds===TODAY_STR,isPast=daysUntil(ds)<0;
-    const d=new Date(ds+'T00:00:00');
-    const label=isToday?'Today — '+d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}):d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-    html+='<div class="week-day-group"><div class="week-day-label'+(isToday?' is-today':isPast?' is-past':'')+'" >'+label+'</div>'+items.map(taskRowHtml).join('')+'</div>';
-  });
-  if(undated.length) html+='<div class="week-day-group"><div class="week-day-label">No due date</div>'+undated.map(taskRowHtml).join('')+'</div>';
-  if(!html) html='<div class="empty-state">Nothing on the calendar this week — enjoy it!</div>';
-  document.getElementById('week-content').innerHTML=html;
-}
-
-// ── Projects ───────────────────────────────────────────────
-function calcPct(proj){
-  let tot=0,done=0;
-  proj.milestones.forEach(function(m){m.tasks.forEach(function(t){tot++;if(t.done)done++;});});
-  return tot?Math.round(done/tot*100):0;
-}
-function cycleStatus(projId,e){
-  e.stopPropagation(); document.querySelectorAll('.status-dropdown').forEach(function(el){el.remove();});
-  const p=projects.find(function(p){return p.id===projId;}); if(!p) return;
-  const btn=e.currentTarget;
-  const dd=document.createElement('div'); dd.className='status-dropdown';
-  STATUS_CYCLE.forEach(function(s){
-    const b=document.createElement('button'); b.textContent=s;
-    if(s===p.status) b.style.fontWeight='500';
-    b.onclick=function(ev){ev.stopPropagation();p.status=s;save();render();dd.remove();};
-    dd.appendChild(b);
-  });
-  btn.style.position='relative'; btn.appendChild(dd);
-}
-document.addEventListener('click',function(){document.querySelectorAll('.status-dropdown').forEach(function(el){el.remove();});});
-
-function renderProjects(){
-  const vp=visibleProjects();
-  const el=document.getElementById('projects-list');
-  if(!vp.length){el.innerHTML='<div class="empty-state">No projects yet — add one above.</div>';return;}
-  el.innerHTML=vp.map(function(proj){
-    const cs=catStyle(proj.cat); const os=ownerStyle(proj.owner);
-    const pct=calcPct(proj); const isOpen=!!openProjects[proj.id];
-    const db=dueBadge(proj.due); const projNotes=notes[proj.id]||'';
-    let bodyHtml='';
-    if(isOpen){
-      const ownOpts=cfg.owners.map(function(o){return '<option value="'+esc(o)+'">'+esc(o)+'</option>';}).join('');
-      const milestones=proj.milestones.map(function(m){
-        const safeLabel=m.label.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        return '<div class="milestone-block"><div class="milestone-name">'+esc(m.label)+'</div>'+
-          m.tasks.map(function(t){
-            const tb=dueBadge(t.due); const to=t.owner||proj.owner; const rl=recurLabel(t.recur);
-            const tObj=Object.assign({},t,{cat:proj.cat,owner:to,projName:proj.name,projId:proj.id,isQuick:false});
-            _taskRegistry[String(t.id)] = tObj;
-            return '<div class="task-row">'+
-              '<div class="task-check'+(t.done?' done':'')+'" onclick="toggleTask('+proj.id+','+t.id+')"></div>'+
-              '<span class="task-label'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'+
-              (rl?'<span class="recur-badge">'+rl+'</span>':'')+
-              ownerBadge(to)+
-              (tb.label?'<span class="task-due-tag '+tb.cls+'">'+tb.label+'</span>':'')+
-              '<button class="task-action-btn" onclick="openEditTaskById('+t.id+')" title="Edit">✎</button>'+
-              '</div>';
-          }).join('')+
-          '<div class="add-task-row">'+
-          '<input class="add-task-input" id="ti-'+proj.id+'-'+m.label.replace(/\s/g,'_')+'" placeholder="+ add task..." />'+
-          '<input type="date" class="add-task-date" id="td-'+proj.id+'-'+m.label.replace(/\s/g,'_')+'" />'+
-          '<select class="add-task-owner" id="to-'+proj.id+'-'+m.label.replace(/\s/g,'_')+'">'+ownOpts+'</select>'+
-          '<select class="add-task-recur" id="tr-'+proj.id+'-'+m.label.replace(/\s/g,'_')+'"><option value="none">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>'+
-          '<button class="add-task-btn" onclick="addTask('+proj.id+',\''+safeLabel+'\')">Add</button>'+
-          '</div></div>';
-      }).join('');
-      bodyHtml='<div class="tasks-panel">'+milestones+
-        '<div style="padding:10px 16px;border-top:1px solid var(--border)">'+
-        '<button class="btn" style="font-size:12px" onclick="openAddMilestone('+proj.id+')">+ Add milestone</button>'+
-        '</div></div>'+
-        '<div class="notes-bar"><span class="notes-icon">✎</span>'+
-        '<textarea class="notes-input" rows="2" placeholder="Notes, ideas, links..." onchange="saveNotes('+proj.id+',this.value)">'+esc(projNotes)+'</textarea></div>';
-    }
-    return '<div class="project-card">'+
-      '<div class="project-header" onclick="toggleProject('+proj.id+')">'+
-      '<div class="proj-dot" style="background:'+cs.color+'"></div>'+
-      '<div class="proj-meta">'+
-      '<div class="proj-top"><span class="proj-name">'+esc(proj.name)+'</span>'+
-      '<span class="badge" style="background:'+cs.bg+';color:'+cs.text+'">'+esc(proj.cat)+'</span>'+
-      '<span class="badge" style="background:'+os.bg+';color:'+os.text+'">'+esc(proj.owner)+'</span>'+
-      '<button class="status-toggle" style="'+STATUS_STYLE[proj.status]+'" onclick="cycleStatus('+proj.id+',event)">'+proj.status+' ▾</button>'+
-      '</div>'+
-      '<div class="proj-progress"><div class="bar-wrap"><div class="bar-fill" style="width:'+pct+'%;background:'+cs.color+'"></div></div>'+
-      '<span class="bar-pct">'+pct+'%</span></div>'+
-      (db.label?'<div class="proj-due">'+db.label+'</div>':'')+
-      '</div><span class="proj-chevron'+(isOpen?' open':'')+'">⌄</span></div>'+
-      bodyHtml+'</div>';
-  }).join('');
-}
-
-// ── Actions ────────────────────────────────────────────────
-function toggleProject(id){openProjects[id]=!openProjects[id];render();}
-function toggleTask(projId,taskId){
-  const p=projects.find(function(p){return p.id===projId;}); if(!p) return;
-  p.milestones.forEach(function(m){m.tasks.forEach(function(t){
-    if(t.id===taskId){
-      if(t.recur&&t.recur!=='none'){t.due=nextRecurringDue(t.due||TODAY_STR,t.recur);t.done=false;}
-      else{t.done=!t.done;}
-    }
-  });});
-  save(); render();
-}
-function addTask(projId,milestoneName){
-  const sid=milestoneName.replace(/\s/g,'_');
-  const te=document.getElementById('ti-'+projId+'-'+sid);
-  const de=document.getElementById('td-'+projId+'-'+sid);
-  const oe=document.getElementById('to-'+projId+'-'+sid);
-  const re=document.getElementById('tr-'+projId+'-'+sid);
-  if(!te) return; const val=te.value.trim(); if(!val) return;
-  const p=projects.find(function(p){return p.id===projId;}); if(!p) return;
-  const m=p.milestones.find(function(m){return m.label===milestoneName;}); if(!m) return;
-  m.tasks.push({id:uid(),text:val,done:false,due:de?de.value||null:null,owner:oe?oe.value:cfg.owners[cfg.owners.length-1],recur:re?re.value:'none'});
-  openProjects[projId]=true; save(); render();
-}
-function saveNotes(projId,val){notes[projId]=val;save();}
-
-// ── Edit / delete tasks ────────────────────────────────────
-function openEditTaskById(id){
-  const t = _taskRegistry[String(id)];
-  if(!t){ console.warn('Task not found in registry:', id); return; }
-  openEditTask(t);
-}
-function openEditTask(t){
-  // Populate owner and cat selects
-  const ownerSel = document.getElementById('et-owner');
-  ownerSel.innerHTML = cfg.owners.map(function(o){return '<option value="'+esc(o)+'">'+esc(o)+'</option>';}).join('');
-  const catSel = document.getElementById('et-cat');
-  catSel.innerHTML = cfg.cats.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
-
-  document.getElementById('et-proj-id').value  = t.projId || '';
-  document.getElementById('et-task-id').value  = t.id;
-  document.getElementById('et-is-quick').value = t.isQuick ? '1' : '0';
-  document.getElementById('et-text').value      = t.text || '';
-  document.getElementById('et-due').value       = t.due || '';
-  document.getElementById('et-recur').value     = t.recur || 'none';
-  ownerSel.value = t.owner || cfg.owners[cfg.owners.length-1];
-  catSel.value   = t.cat || cfg.cats[0].name;
-  document.getElementById('modal-edit-task').classList.remove('hidden');
-}
-
-function submitEditTask(){
-  const taskId   = parseInt(document.getElementById('et-task-id').value);
-  const isQuick  = document.getElementById('et-is-quick').value === '1';
-  const projId   = parseInt(document.getElementById('et-proj-id').value);
-  const newText  = document.getElementById('et-text').value.trim(); if(!newText) return;
-  const newDue   = document.getElementById('et-due').value || null;
-  const newOwner = document.getElementById('et-owner').value;
-  const newRecur = document.getElementById('et-recur').value;
-  const newCat   = document.getElementById('et-cat').value;
-
-  if(isQuick){
-    const t = quickTasks.find(function(t){return t.id===taskId;}); if(!t) return;
-    t.text=newText; t.due=newDue; t.owner=newOwner; t.recur=newRecur; t.cat=newCat;
-  } else {
-    const p = projects.find(function(p){return p.id===projId;}); if(!p) return;
-    p.milestones.forEach(function(m){m.tasks.forEach(function(t){
-      if(t.id===taskId){ t.text=newText; t.due=newDue; t.owner=newOwner; t.recur=newRecur; }
-    });});
-  }
-  closeModal('modal-edit-task'); save(); render();
-}
-
-function deleteTaskFromModal(){
-  const taskId  = parseInt(document.getElementById('et-task-id').value);
-  const isQuick = document.getElementById('et-is-quick').value === '1';
-  const projId  = parseInt(document.getElementById('et-proj-id').value);
-  if(!confirm('Delete this task?')) return;
-  if(isQuick){
-    quickTasks = quickTasks.filter(function(t){return t.id!==taskId;});
-  } else {
-    const p = projects.find(function(p){return p.id===projId;}); if(!p) return;
-    p.milestones.forEach(function(m){ m.tasks = m.tasks.filter(function(t){return t.id!==taskId;}); });
-  }
-  closeModal('modal-edit-task'); save(); render();
-}
-
-// ── Modals ─────────────────────────────────────────────────
-function openAddProject(){populateSelects();document.getElementById('modal-project').classList.remove('hidden');}
-function openAddMilestone(id){document.getElementById('ms-proj-id').value=id;document.getElementById('modal-milestone').classList.remove('hidden');}
-function closeModal(id){document.getElementById(id).classList.add('hidden');}
-function submitProject(){
-  const name=document.getElementById('np-name').value.trim(); if(!name) return;
-  const id=uid();
-  const np={id:id,name:name,cat:document.getElementById('np-cat').value,owner:document.getElementById('np-owner').value,status:document.getElementById('np-status').value,due:document.getElementById('np-due').value||null,milestones:[{label:'Tasks',tasks:[]}]};
-  const initN=document.getElementById('np-notes-init').value.trim();
-  if(initN) notes[id]=initN;
-  projects.push(np); openProjects[id]=true;
-  ['np-name','np-due','np-notes-init'].forEach(function(eid){document.getElementById(eid).value='';});
-  closeModal('modal-project'); save(); switchView('projects');
-}
-function submitMilestone(){
-  const name=document.getElementById('ms-name').value.trim(); if(!name) return;
-  const projId=parseInt(document.getElementById('ms-proj-id').value);
-  const p=projects.find(function(p){return p.id===projId;}); if(!p) return;
-  p.milestones.push({label:name,tasks:[]});
-  document.getElementById('ms-name').value='';
-  closeModal('modal-milestone'); save(); render();
-}
+// ══ Wiring ══════════════════════════════════════════════════
+document.addEventListener('click', function(){ document.querySelectorAll('.status-dropdown').forEach(function(el){ el.remove(); }); });
 document.querySelectorAll('.modal-backdrop').forEach(function(el){
-  el.addEventListener('click',function(e){if(e.target===el)el.classList.add('hidden');});
+  el.addEventListener('click', function(e){ if(e.target === el) el.classList.add('hidden'); });
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(function(el){ el.classList.add('hidden'); });
+    closeSettings(); closeDrawer(); dismissFollowUp();
+  }
 });
 
-// ── Expose globals ─────────────────────────────────────────
-window.handleSignIn=handleSignIn;
-window.switchView=switchView; window.toggleCat=toggleCat; window.toggleOwner=toggleOwner;
-window.quickAddToday=quickAddToday; window.quickAddWeek=quickAddWeek; window.toggleQuickTask=toggleQuickTask;
-window.toggleProject=toggleProject; window.toggleTask=toggleTask; window.addTask=addTask;
-window.saveNotes=saveNotes; window.cycleStatus=cycleStatus;
-window.openEditTask=openEditTask; window.openEditTaskById=openEditTaskById; window.submitEditTask=submitEditTask; window.deleteTaskFromModal=deleteTaskFromModal;
-window.openAddProject=openAddProject; window.openAddMilestone=openAddMilestone;
-window.closeModal=closeModal; window.submitProject=submitProject; window.submitMilestone=submitMilestone;
-window.openSettings=openSettings; window.closeSettings=closeSettings;
-window.addCategory=addCategory; window.deleteCat=deleteCat; window.saveSettings=saveSettings;
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ prepareSignIn(false); });
+else prepareSignIn(false);
 
-function render(){
-  renderSummary();
-  if(currentView==='focus')renderFocus();
-  if(currentView==='week')renderWeek();
-  if(currentView==='projects')renderProjects();
-}
+window.handleSignIn = handleSignIn; window.reconnect = reconnect; window.forceSync = forceSync;
+window.switchView = switchView; window.toggleCatIdx = toggleCatIdx; window.toggleOwnerIdx = toggleOwnerIdx; window.resetFilters = resetFilters;
+window.openDrawer = openDrawer; window.closeDrawer = closeDrawer;
+window.quickAddToday = quickAddToday; window.quickAddWeek = quickAddWeek;
+window.toggleTask = toggleTask; window.addTask = addTask;
+window.openEditTask = openEditTask; window.submitEditTask = submitEditTask; window.deleteTaskFromModal = deleteTaskFromModal;
+window.submitFollowUp = submitFollowUp; window.dismissFollowUp = dismissFollowUp;
+window.toggleProject = toggleProject; window.cycleStatus = cycleStatus;
+window.openAddProject = openAddProject; window.openEditProject = openEditProject; window.submitProject = submitProject; window.deleteProjectFromModal = deleteProjectFromModal;
+window.openAddMilestone = openAddMilestone; window.submitMilestone = submitMilestone; window.deleteMilestone = deleteMilestone;
+window.saveNotes = saveNotes; window.closeModal = closeModal;
+window.openSettings = openSettings; window.closeSettings = closeSettings;
+window.addCategory = addCategory; window.deleteCat = deleteCat; window.saveSettings = saveSettings;
+window.toggleDoneBlock = toggleDoneBlock;
 
 })();
 </script>
